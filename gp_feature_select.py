@@ -30,10 +30,6 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-
-# ### Define a class
-# 
-
 # In[391]:
 
 
@@ -106,8 +102,6 @@ class GPFeatureSelect:
                 avg_rmse = np.mean(rmses)
                 lambda_rmse_pairs.append((l, avg_rmse))
 
-                #print('\nRMSE for this fold: ', avg_rmse)
-
                 if avg_rmse < best_rmse:
                     best_rmse = avg_rmse
                     best_lbda = l
@@ -115,22 +109,8 @@ class GPFeatureSelect:
             return best_lbda, lambda_rmse_pairs
 
         coarse_grid = np.logspace(-1, 1, 10)
-        #print("Coarse grid:", coarse_grid)
 
         best_coarse, coarse_log = run_cv(coarse_grid)
-        
-        #print("Best coarse λ:", best_coarse)
-        # lambdas, rmses = zip(*coarse_log)
-        # plt.figure(figsize=(6, 4))
-        # plt.plot(np.log10(lambdas), rmses, marker='o', label='Validation RMSE')
-        # plt.xlabel("log10(lambda)")
-        # plt.ylabel("Validation RMSE")
-        # plt.title("Lambda vs RMSE")
-        # plt.grid(True)
-        # plt.legend()
-        # plt.show()
-  
-        #return best_coarse
 
         fine_grid = np.linspace(best_coarse * 0.5, best_coarse * 1.5, 6)
         best_fine, fine_log = run_cv(fine_grid)
@@ -212,8 +192,11 @@ class GPFeatureSelect:
 
             # threshold coefficients to select features
             beta_full = self.gp_model.mean_function.A.numpy().flatten()
-            threshold = 0.05  ###
+            threshold = 0.05 * np.max(np.abs(beta_full)) # using 5% of max magnitude
             mask = np.abs(beta_full) > threshold
+
+            if np.sum(mask) == 0: # keep at least one feature
+                mask[np.argmax(np.abs(beta_full))] = True
 
             beta_full[~mask] = 0.0
             self.selected_features = np.where(mask)[0]
@@ -287,8 +270,15 @@ class GPFeatureSelect:
 
             [tn, fp, fn, tp] = confusion_matrix(beta_true_bin, beta_hat_full_bin, labels = [0, 1]).ravel()
                     
-            precision = tp / (tp + fp)
-            recall = tp / (tp + fn)
+            if (tp + fp) == 0:
+                precision = 0.0
+            else:
+                precision = tp / (tp + fp)
+
+            if (tp + fn) == 0:
+                recall = 0.0
+            else:
+                recall = tp / (tp + fn)
             
         self.runtime = (self.fittime or 0) + (self.predicttime or 0) + (self.tunetime or 0)
         
