@@ -102,17 +102,21 @@ class GPFeatureSelect:
                 avg_rmse = np.mean(rmses)
                 lambda_rmse_pairs.append((l, avg_rmse))
 
+                #print('\nRMSE for this fold: ', avg_rmse)
+
                 if avg_rmse < best_rmse:
                     best_rmse = avg_rmse
                     best_lbda = l
             self.tunetime = time.time() - start_tunetime
             return best_lbda, lambda_rmse_pairs
 
-        coarse_grid = np.logspace(-1, 1, 10)
+        coarse_grid = np.logspace(-1,0.5, 12)
+        #print("Coarse grid:", coarse_grid)
 
         best_coarse, coarse_log = run_cv(coarse_grid)
+        
 
-        fine_grid = np.linspace(best_coarse * 0.5, best_coarse * 1.5, 6)
+        fine_grid = np.logspace(np.log10(best_coarse * 0.5), np.log10(best_coarse * 2), 6)
         best_fine, fine_log = run_cv(fine_grid)
         self.lambda_val = best_fine
         self.lambda_rmse_log = coarse_log + fine_log
@@ -192,6 +196,7 @@ class GPFeatureSelect:
 
             # threshold coefficients to select features
             beta_full = self.gp_model.mean_function.A.numpy().flatten()
+
             threshold = 0.05 * np.max(np.abs(beta_full)) # using 5% of max magnitude
             mask = np.abs(beta_full) > threshold
 
