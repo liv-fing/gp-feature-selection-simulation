@@ -1,22 +1,15 @@
 {
     "selected features": [
-        0,
-        1,
-        4,
-        6,
-        7,
-        16,
-        23,
-        26
+        0
     ],
-    "precision": 0.375,
-    "recall": 1.0,
-    "training rmse": 0.0087,
-    "testing rmse": 0.3234,
-    "beta_error": 0.4082,
-    "tune time": 26.4276,
-    "fit time": 0.4712,
-    "prediction time (test)": 0.0202,
-    "total runtime": 26.9189,
-    "lambda": 6.3246
+    "precision": 0.0,
+    "recall": 0.0,
+    "training rmse": 1.0222,
+    "testing rmse": 1.1836,
+    "beta_error": 0.3162,
+    "tune time": 19.3055,
+    "fit time": 0.1753,
+    "prediction time (test)": 0.0256,
+    "total runtime": 19.5064,
+    "lambda": 0.05
 }

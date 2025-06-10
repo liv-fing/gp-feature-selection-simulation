@@ -25,12 +25,12 @@
     ],
     "precision": 0.6818181818181818,
     "recall": 1.0,
-    "training rmse": 0.3951,
-    "testing rmse": 1.2254,
+    "training rmse": 0.0774,
+    "testing rmse": 1.1647,
     "beta_error": 0.483,
-    "tune time": 0.0144,
-    "fit time": 0.2816,
-    "prediction time (test)": 0.0246,
-    "total runtime": 0.3207,
+    "tune time": 0.0075,
+    "fit time": 0.2368,
+    "prediction time (test)": 0.0182,
+    "total runtime": 0.2626,
     "lambda": 0.0342
 }
