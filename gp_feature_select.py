@@ -45,6 +45,7 @@ class GPFeatureSelect:
         self.lasso_model = None
         self.lambda_val = None
         self.beta_hat = None
+        self.lin_intercept = None
         self.runtime = None
         self.tunetime = None
         self.fittime = None
@@ -65,6 +66,7 @@ class GPFeatureSelect:
             mask = np.abs(las.coef_) > 1e-4
             self.selected_features = np.where(mask)[0]
             self.beta_hat = las.coef_
+            self.lin_intercept = las.intercept_
             self.lasso_model = las
             self.lambda_val = las.alpha_
             self.tunetime = time.time() - tune_start
@@ -111,10 +113,7 @@ class GPFeatureSelect:
             return best_lbda, lambda_rmse_pairs
 
         coarse_grid = np.logspace(-1,0.5, 12)
-        #print("Coarse grid:", coarse_grid)
-
         best_coarse, coarse_log = run_cv(coarse_grid)
-        
 
         fine_grid = np.logspace(np.log10(best_coarse * 0.5), np.log10(best_coarse * 2), 6)
         best_fine, fine_log = run_cv(fine_grid)
@@ -131,7 +130,11 @@ class GPFeatureSelect:
                 raise ValueError(f"Shape mismatch: A_init.shape[0] = {A_init.shape[0]}, m = {m}")
         else:
             A_init = tf.zeros((m, 1), dtype=tf.float64)
-        b_init = tf.zeros((1,), dtype=tf.float64)
+
+        if self.lin_intercept is not None:
+            b_init = tf.constant(self.lin_intercept, dtype=tf.float64)
+        else:
+            b_init = tf.zeros((1,), dtype=tf.float64)
 
         kernel = gpf.kernels.SquaredExponential(lengthscales=1)
         likelihood = gpf.likelihoods.Gaussian()
@@ -139,6 +142,8 @@ class GPFeatureSelect:
 
         # prevent mean function from being retrained
         self.gp_model.mean_function.A.trainable = False
+        self.gp_model.mean_function.b.trainable = False
+
 
         self.gp_model = gpf.models.GPR(data = (X, y.reshape(-1,1)), kernel = kernel, likelihood = likelihood, mean_function = mean_function)
 
@@ -152,7 +157,11 @@ class GPFeatureSelect:
                 raise ValueError(f"Shape mismatch: A_init.shape[0] = {A_init.shape[0]}, m = {m}")
         else:
             A_init = tf.zeros((m, 1), dtype=tf.float64)
-        b_init = tf.zeros((1,), dtype=tf.float64)
+
+        if self.lin_intercept is not None:
+            b_init = tf.constant(self.lin_intercept, dtype=tf.float64)
+        else:
+            b_init = tf.zeros((1,), dtype=tf.float64)
 
         kernel = gpf.kernels.SquaredExponential(lengthscales=np.ones(m))
         likelihood = gpf.likelihoods.Gaussian()
@@ -160,6 +169,7 @@ class GPFeatureSelect:
 
         # prevent mean function from being retrained
         self.gp_model.mean_function.A.trainable = False
+        self.gp_model.mean_function.b.trainable = False
 
         self.gp_model = gpf.models.GPR(data = (X, y.reshape(-1,1)), kernel = kernel, likelihood = likelihood, mean_function = mean_function)
 
