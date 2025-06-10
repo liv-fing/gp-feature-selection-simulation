@@ -1,0 +1,13 @@
+{
+    "selected features": "All features",
+    "precision": 0.5,
+    "recall": 1.0,
+    "training rmse": 0.3922,
+    "testing rmse": 1.2523,
+    "beta_error": 0.7071,
+    "tune time": null,
+    "fit time": 0.3139,
+    "prediction time (test)": 0.0232,
+    "total runtime": 0.3371,
+    "lambda": null
+}
