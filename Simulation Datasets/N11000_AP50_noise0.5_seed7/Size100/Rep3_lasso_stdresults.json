@@ -1,0 +1,31 @@
+{
+    "selected features": [
+        0,
+        2,
+        3,
+        6,
+        7,
+        8,
+        9,
+        10,
+        13,
+        14,
+        16,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+    ],
+    "precision": 0.6470588235294118,
+    "recall": 0.7333333333333333,
+    "training rmse": 0.9717,
+    "testing rmse": 2.241,
+    "beta_error": 0.5774,
+    "tune time": 0.0078,
+    "fit time": 0.1796,
+    "prediction time (test)": 0.0295,
+    "total runtime": 0.2169,
+    "lambda": 0.1786
+}
