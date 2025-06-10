@@ -122,28 +122,44 @@ class GPFeatureSelect:
         self.lambda_rmse_log = coarse_log + fine_log
         return best_fine
 
-        
     def init_gp_mod(self, X, y):
         y = np.asarray(y).reshape(-1, 1)
         m = X.shape[1]
-        A_init = tf.zeros((m, 1), dtype=tf.float64)
+        if self.beta_hat is not None:
+            A_init = self.beta_hat.reshape(-1, 1)
+            if A_init.shape[0] != m:
+                raise ValueError(f"Shape mismatch: A_init.shape[0] = {A_init.shape[0]}, m = {m}")
+        else:
+            A_init = tf.zeros((m, 1), dtype=tf.float64)
         b_init = tf.zeros((1,), dtype=tf.float64)
 
         kernel = gpf.kernels.SquaredExponential(lengthscales=1)
         likelihood = gpf.likelihoods.Gaussian()
         mean_function = gpf.mean_functions.Linear(A=A_init, b = b_init) 
 
+        # prevent mean function from being retrained
+        self.gp_model.mean_function.A.trainable = False
+
         self.gp_model = gpf.models.GPR(data = (X, y.reshape(-1,1)), kernel = kernel, likelihood = likelihood, mean_function = mean_function)
 
     def init_ard_gp_mod(self, X, y):
         y = np.asarray(y).reshape(-1, 1)
         m = X.shape[1]
-        A_init = tf.zeros((m, 1), dtype=tf.float64)
+        
+        if self.beta_hat is not None:
+            A_init = self.beta_hat.reshape(-1, 1)
+            if A_init.shape[0] != m:
+                raise ValueError(f"Shape mismatch: A_init.shape[0] = {A_init.shape[0]}, m = {m}")
+        else:
+            A_init = tf.zeros((m, 1), dtype=tf.float64)
         b_init = tf.zeros((1,), dtype=tf.float64)
 
         kernel = gpf.kernels.SquaredExponential(lengthscales=np.ones(m))
         likelihood = gpf.likelihoods.Gaussian()
         mean_function = gpf.mean_functions.Linear(A=A_init, b = b_init) 
+
+        # prevent mean function from being retrained
+        self.gp_model.mean_function.A.trainable = False
 
         self.gp_model = gpf.models.GPR(data = (X, y.reshape(-1,1)), kernel = kernel, likelihood = likelihood, mean_function = mean_function)
 
