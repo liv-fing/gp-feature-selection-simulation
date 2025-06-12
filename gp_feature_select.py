@@ -277,44 +277,92 @@ class GPFeatureSelect:
         return mean.numpy().flatten()
     
     def get_metrics(self, Xtrain, ytrain, Xtest, ytest, beta_true=None):
-        ytrain_pred = self.predict(Xtrain, istest = False)
-        train_rmse = np.sqrt(np.mean((ytrain - ytrain_pred) ** 2))
+        # ytrain_pred = self.predict(Xtrain, istest = False)
+        # train_rmse = np.sqrt(np.mean((ytrain - ytrain_pred) ** 2))
         
-        ytest_pred = self.predict(Xtest, istest = True)
+        # ytest_pred = self.predict(Xtest, istest = True)
+        # test_rmse = np.sqrt(np.mean((ytest - ytest_pred) ** 2))
+
+        # beta_error = None
+        # precision = None
+        # recall = None
+
+        # if beta_true is not None and self.beta_hat is not None:
+
+        #     beta_hat_full = np.zeros(len(beta_true))
+
+        #     if self.selected_features is not None:
+        #         beta_hat_full[self.selected_features] = self.beta_hat
+        #     else:
+        #         #no selection -> full model used
+        #         beta_hat_full = self.beta_hat
+        #         self.selected_features = np.arange(len(beta_true)) 
+
+        #     beta_true_bin = (beta_true != 0).astype(int)
+
+
+        #     beta_hat_full_bin = np.zeros_like(beta_true)
+        #     if self.selected_features is not None:
+        #         beta_hat_full_bin[self.selected_features] = 1
+        #     else:
+        #         beta_hat_full_bin[:] = 1
+
+
+        #     beta_error = np.sqrt(np.mean((beta_true_bin - beta_hat_full_bin) ** 2))
+
+        #     [tn, fp, fn, tp] = confusion_matrix(beta_true_bin, beta_hat_full_bin, labels = [0, 1]).ravel()
+                    
+        #     if (tp + fp) == 0:
+        #         precision = 0.0
+        #     else:
+        #         precision = tp / (tp + fp)
+
+        #     if (tp + fn) == 0:
+        #         recall = 0.0
+        #     else:
+        #         recall = tp / (tp + fn)
+            
+        # self.runtime = (self.fittime or 0) + (self.predicttime or 0) + (self.tunetime or 0)
+
+
+        ytrain_pred = self.predict(Xtrain, istest=False)
+        train_rmse = np.sqrt(np.mean((ytrain - ytrain_pred) ** 2))
+
+        ytest_pred = self.predict(Xtest, istest=True)
         test_rmse = np.sqrt(np.mean((ytest - ytest_pred) ** 2))
 
         beta_error = None
         precision = None
         recall = None
 
-        if beta_true is not None and self.beta_hat is not None:
+        if beta_true is not None:
+            p = len(beta_true)
 
-            beta_hat_full = np.zeros(len(beta_true))
-
+            # construct full-length selection vector
             if self.selected_features is not None:
-                beta_hat_full[self.selected_features] = self.beta_hat
+                selected_mask = np.zeros(p, dtype=int)
+                selected_mask[self.selected_features] = 1
             else:
-                #no selection -> full model used
-                beta_hat_full = self.beta_hat
-                self.selected_features = np.arange(len(beta_true)) 
+                # full model case
+                selected_mask = np.ones(p, dtype=int)
+                self.selected_features = np.arange(p)
 
             beta_true_bin = (beta_true != 0).astype(int)
-            beta_hat_full_bin = (beta_hat_full != 0).astype(int)
-            beta_error = np.sqrt(np.mean((beta_true_bin - beta_hat_full_bin) ** 2))
 
-            [tn, fp, fn, tp] = confusion_matrix(beta_true_bin, beta_hat_full_bin, labels = [0, 1]).ravel()
-                    
-            if (tp + fp) == 0:
-                precision = 0.0
-            else:
-                precision = tp / (tp + fp)
+            beta_error = np.sqrt(np.mean((selected_mask - beta_true_bin) ** 2))
 
-            if (tp + fn) == 0:
-                recall = 0.0
-            else:
-                recall = tp / (tp + fn)
-            
+            #print("beta_true_bin:", beta_true_bin)
+            #print("selected_mask:", selected_mask)
+            #print("confusion_matrix:", confusion_matrix(beta_true_bin, selected_mask, labels=[0, 1]))
+
+
+            tn, fp, fn, tp = confusion_matrix(beta_true_bin, selected_mask, labels=[0, 1]).ravel()
+
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+
         self.runtime = (self.fittime or 0) + (self.predicttime or 0) + (self.tunetime or 0)
+
         
         return {
             'selected features': self.selected_features if self.selected_features is not None else 'All features',

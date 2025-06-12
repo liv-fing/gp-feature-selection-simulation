@@ -31,14 +31,14 @@
         28,
         29
     ],
-    "precision": 0.0,
-    "recall": 0.0,
+    "precision": 0.5,
+    "recall": 1.0,
     "training rmse": 3.7847,
     "testing rmse": 6.1641,
     "beta_error": 0.7071,
     "tune time": null,
-    "fit time": 0.2374,
-    "prediction time (test)": 0.0223,
-    "total runtime": 0.2597,
+    "fit time": 0.2171,
+    "prediction time (test)": 0.0208,
+    "total runtime": 0.238,
     "lambda": null
 }
