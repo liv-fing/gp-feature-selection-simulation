@@ -7,9 +7,9 @@
     "training rmse": 3.4601,
     "testing rmse": 3.3461,
     "beta_error": 0.7071,
-    "tune time": 36399.4578,
-    "fit time": 41.5871,
-    "prediction time (test)": 0.1062,
-    "total runtime": 36441.151,
+    "tune time": 20415.8937,
+    "fit time": 35.2007,
+    "prediction time (test)": 0.1027,
+    "total runtime": 20451.1971,
     "lambda": 0.05
 }
