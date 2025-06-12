@@ -112,10 +112,10 @@ class GPFeatureSelect:
             self.tunetime = time.time() - start_tunetime
             return best_lbda, lambda_rmse_pairs
 
-        coarse_grid = np.logspace(-1,0.5, 12)
+        coarse_grid = np.logspace(-1,0.5, 10)
         best_coarse, coarse_log = run_cv(coarse_grid)
 
-        fine_grid = np.logspace(np.log10(best_coarse * 0.5), np.log10(best_coarse * 2), 6)
+        fine_grid = np.logspace(np.log10(best_coarse * 0.5), np.log10(best_coarse * 2), 5)
         best_fine, fine_log = run_cv(fine_grid)
         self.lambda_val = best_fine
         self.lambda_rmse_log = coarse_log + fine_log
@@ -290,10 +290,13 @@ class GPFeatureSelect:
         if beta_true is not None and self.beta_hat is not None:
 
             beta_hat_full = np.zeros(len(beta_true))
+
             if self.selected_features is not None:
                 beta_hat_full[self.selected_features] = self.beta_hat
             else:
-                beta_hat_full = self.beta_hat   
+                #no selection -> full model used
+                beta_hat_full = self.beta_hat
+                self.selected_features = np.arange(len(beta_true)) 
 
             beta_true_bin = (beta_true != 0).astype(int)
             beta_hat_full_bin = (beta_hat_full != 0).astype(int)
