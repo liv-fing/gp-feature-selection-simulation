@@ -10,7 +10,3 @@ __pycache__/
 
 # IDE
 .vscode/
-
-# Optional: Archive + synthetic data
-archive/
-synthetic_data/
