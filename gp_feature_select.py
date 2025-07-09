@@ -9,7 +9,6 @@
 
 
 # import libraries
-
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -19,8 +18,6 @@ import json
 import tensorflow as tf
 import time
 from tracemalloc import start
-
-
 from sklearn.linear_model import LinearRegression, LassoLarsCV
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import KFold
