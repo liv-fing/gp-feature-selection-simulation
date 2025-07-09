@@ -39,7 +39,7 @@ The entire simulation pipeline was implemented using a custom Python class, allo
 ## Output
 
 - All simulation results are saved to CSVs and visualized as comparative plots.
-- A 20-page research paper summarizes methodology, results, and implications for sparse regression with GP models.
+- A research paper (`IEMS399_Final_Report.pdf`) that summarizes the methodology, results, and implications for sparse regression with GP models. It is included in the root directory.
 
 ## Code Structure
 
