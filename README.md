@@ -41,3 +41,10 @@ The entire simulation pipeline was implemented using a custom Python class, allo
 - All simulation results are saved to CSVs and visualized as comparative plots.
 - A 20-page research paper summarizes methodology, results, and implications for sparse regression with GP models.
 
+## Code Structure
+
+- `gp_feature_select.py` – Contains a custom Python class that wraps feature selection and GP regression. Supports ARD, Lasso-based filtering, and L1-penalized GP models with modular training and evaluation methods.
+- `notebooks/` – Jupyter notebooks used for simulation, analysis, and visualization.
+- `synthetic_data/` – Synthetic datasets generated with controlled sparsity and noise.
+- `figures/` – Plots comparing model performance across settings.
+- `archive/` – Old experiments and notebooks kept for reference.
