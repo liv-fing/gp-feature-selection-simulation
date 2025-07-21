@@ -1,4 +1,4 @@
-# Sparse Feature Selection for Gaussian Process Regression
+# Regularization-Based Feature Selection for Gaussian Processes
 
 This project benchmarks sparse feature selection methods for Gaussian Process (GP) regression across synthetic datasets with varying levels of sparsity, noise, and sample size. 
 It was completed as part of an independent study (IEMS 399) at Northwestern University, and it was advised by Professor of Industrial Engineering, Moses Chan. 
