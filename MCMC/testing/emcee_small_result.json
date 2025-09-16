@@ -14639,7 +14639,10 @@
   ],
   "fixed_parameter_keys": [],
   "constraint_parameter_keys": [],
-  "sampling_time": 285.108638,
+  "sampling_time": {
+    "__timedelta__": true,
+    "__total_seconds__": 285.108638
+  },
   "sampler_kwargs": {
     "nwalkers": 200,
     "a": 2,
