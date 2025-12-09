@@ -1,13 +1,7 @@
-# macOS
-.DS_Store
 
-# Python
-__pycache__/
-*.py[cod]
+results/
+venv/
 
-# Jupyter
-.ipynb_checkpoints/
-
-# IDE
-.vscode/
-/MCMC/50walkers
+# specific results folders
+25walkers/
+50walkers/
