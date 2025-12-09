@@ -1,12 +1,2 @@
-# macOS
-.DS_Store
-
-# Python
-__pycache__/
-*.py[cod]
-
-# Jupyter
-.ipynb_checkpoints/
-
-# IDE
-.vscode/
+results/
+venv/
