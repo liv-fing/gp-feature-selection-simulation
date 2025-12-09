@@ -1,2 +1,6 @@
 results/
 venv/
+
+# specific results folders
+25walkers/
+50walkers/
