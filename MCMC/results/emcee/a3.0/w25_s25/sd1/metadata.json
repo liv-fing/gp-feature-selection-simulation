@@ -1,0 +1,9 @@
+{
+  "sampler": "emcee",
+  "numwalkers": 25,
+  "numsteps": 25,
+  "numburn": 2,
+  "a_val": 3.0,
+  "seed": 1,
+  "datetime": "2025-11-02T21:14:46.713687"
+}

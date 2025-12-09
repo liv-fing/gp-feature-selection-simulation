@@ -1,0 +1,9 @@
+{
+  "sampler": "pymc",
+  "draws": 1000,
+  "tune": 0,
+  "chains": 2,
+  "seed": 1,
+  "step": "Metropolis",
+  "datetime": "2025-12-09T12:42:55.919917"
+}

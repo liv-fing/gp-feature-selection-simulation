@@ -1,0 +1,9 @@
+{
+  "sampler": "pymc",
+  "draws": 5000,
+  "tune": 0,
+  "chains": 2,
+  "seed": 1,
+  "step": "NUTS",
+  "datetime": "2025-12-02T01:07:50.034275"
+}
