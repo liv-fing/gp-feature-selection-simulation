@@ -1,3 +1,0 @@
-Per-walker acceptance fractions:
-Samper did not provide acceptance fraction.
-Num walkers: 25, steps: 50, burn-in: 20
