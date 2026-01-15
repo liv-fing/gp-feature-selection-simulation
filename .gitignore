@@ -3,5 +3,17 @@ results/
 venv/
 
 # specific results folders
-25walkers/
-50walkers/
+MCMC/25walkers/
+MCMC/50walkers/
+MCMC/testing/
+MCMC/outdir2/
+
+# OS files
+.DS_Store
+
+# large result formats
+*.json
+*.dat
+*.pickle
+*.pkl
+
