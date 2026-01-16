@@ -1,16 +1,5 @@
 
-# mechanism_v3.py
-
-'''
-main differences: 
-- replacing inverse_sigmas with sigmas directly sampled from inv gamma
-- adding hierarchical modeling for tau parameters
-- adding hierarchical modeling for beta parameters
-
-
-note:
-
-'''
+# mechanism_v3_lasso.py
 
 # imports
 from datetime import datetime
@@ -31,11 +20,11 @@ from sklearn.preprocessing import StandardScaler
 
 
 # make directory for the run
-def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0):
+def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 4, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0):
     if test_lambda:
         path =  f"results/lasso/{sampler}/lambda_testing/dr{numdraws}_t{numtune}/lbda{fixed_lambda_val}/ch{numchains}_{steptype}/sd{seed}"
     else:
-        path =  f"results/lasso/{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/lasso/all_features/v2/{sampler}_dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "sampler": sampler,
@@ -58,14 +47,14 @@ def process_pymc_results(outdir, trace, X): # process pymc trace into a clean da
     posterior_ds = trace.posterior.stack(sample=("chain", "draw"))
     clean_df = pd.DataFrame()
     clean_df['sigma2_noise'] = (posterior_ds['sigma2_noise']).values
-    clean_df['sigma2_gp'] = (posterior_ds['sigma2_gp']).values
+    # clean_df['sigma2_gp'] = (posterior_ds['sigma2_gp']).values
     clean_df['lambda'] = np.sqrt(posterior_ds['lambda2'].values)
     for i in range(num_features):
-        ell_i = posterior_ds['ell'].isel(ell_dim_0=i).values
+        # ell_i = posterior_ds['ell'].isel(ell_dim_0=i).values
         beta_i = posterior_ds['beta'].isel(beta_dim_0=i).values
         # add to dataframe
         clean_df[f'beta{i}'] = beta_i
-        clean_df[f'ell{i}'] = ell_i
+        # clean_df[f'ell{i}'] = ell_i
     # --- save to CSV ---
     os.makedirs(outdir, exist_ok=True)
     clean_df.to_csv(os.path.join(outdir, "posterior_summary.csv"), index=False)
@@ -84,7 +73,7 @@ def make_trace_plots(outdir, trace, X):
 
     scalars = {
         'sigma2_noise': posterior['sigma2_noise'],
-        'sigma2_gp': posterior['sigma2_gp'],
+        # 'sigma2_gp': posterior['sigma2_gp'],
         'lambda': np.sqrt(posterior['lambda2'])
     }
 
@@ -102,19 +91,21 @@ def make_trace_plots(outdir, trace, X):
 
         for chain in range(beta_i.sizes['chain']):
             ax.plot(beta_i.isel(chain=chain).values, alpha=0.4)
-            ax.set_ylim(-50, 50)  
+
+            # set automatic y-limits for better visualization
+            ax.set_ylim(beta_i.min().values * 1.1, beta_i.max().values * 1.1)
 
         ax.set_title(f'Trace plot for beta{i}')
         ax.set_ylabel(f'beta{i}')
 
     # ells
-    for i in range(num_features):
-        ax = axes[i + 3 + num_features]  # offset after scalars + betas
-        ell_i = posterior['ell'].isel(ell_dim_0=i)
-        for chain in range(ell_i.sizes['chain']):
-            ax.plot(ell_i.isel(chain=chain).values, alpha=0.4)
-        ax.set_title(f'Trace plot for ell{i}')
-        ax.set_ylabel(f'ell{i}')
+    # for i in range(num_features):
+    #     ax = axes[i + 3 + num_features]  # offset after scalars + betas
+    #     ell_i = posterior['ell'].isel(ell_dim_0=i)
+    #     for chain in range(ell_i.sizes['chain']):
+    #         ax.plot(ell_i.isel(chain=chain).values, alpha=0.4)
+    #     ax.set_title(f'Trace plot for ell{i}')
+    #     ax.set_ylabel(f'ell{i}')
 
     #axes[-1].set_xlabel('Draw')
     plt.tight_layout()
@@ -124,8 +115,10 @@ def make_trace_plots(outdir, trace, X):
     print(f"Trace plots saved to {outdir}/trace_plots.png")
 
 
-# custom log likelihood class
-class PenalizedGPLikelihood_pymc:
+
+
+
+class custom_likelihood:
     def __init__(self, X, y):
         self.X = np.asarray(X, dtype=np.float64)
         self.y = np.asarray(y, dtype=np.float64)
@@ -139,25 +132,20 @@ class PenalizedGPLikelihood_pymc:
         K = sigma2_gp * pt.exp(-0.5 * squared_dist)
         return K
 
-    def logProbability(self, sigma2_noise, sigma2_gp, tau2, beta, ell):
-        """ compute custom log likelihood using pytensor """
-        # transform
-
-        #sigma_noise = pt.sqrt(sigma2_noise)
-        #sigma_gp = pt.sqrt(sigma2_gp)
-
-        C = self.rbf_kernel(self.X, ell, sigma2_gp) 
+    def logProbability(self, sigma2_noise, tau2, beta):
+       
+        # residuals
         residuals = self.y - pt.dot(self.X, beta)
-        sigma2_D = sigma2_noise * pt.diag(tau2)
 
-        log_lik_gp = (
-            -0.5 * self.n * pt.log(2 * pt.pi)
-            -0.5 * pt.nlinalg.slogdet(C + sigma2_noise * pt.eye(self.n))[1]
-            -0.5 * pt.dot(residuals, pt.slinalg.solve(C + sigma2_noise * pt.eye(self.n), residuals))
-            )
-        
-        #  add epsilon of 1e-12 for stability
-        inv_sigma2_D = 1 / (sigma2_D + 1e-12)
+        # y ~ N(X*beta, sigma^2_noise)
+        log_lik_data = (
+            -0.5 * self.n * pt.log(2 * pt.pi * sigma2_noise)
+            -0.5 / sigma2_noise * pt.dot(residuals, residuals)
+        )
+
+        # beta ~ N(0, sigma^2_noise * D_tau^2)
+        sigma2_D = sigma2_noise * pt.diag(tau2)
+        inv_sigma2_D = 1 / (sigma2_D + 1e-12) # add epsilon for stability
         logdet = pt.sum(pt.log(sigma2_D + 1e-12))
         quadratic = pt.sum((beta**2) * inv_sigma2_D)
 
@@ -167,10 +155,8 @@ class PenalizedGPLikelihood_pymc:
             -0.5 * quadratic
             )
         
-        # removng GP likelihood for lasso testing
-        # return log_lik_gp + log_lik_beta 
-        return log_lik_beta
-    
+        return log_lik_data + log_lik_beta
+
 
 # main call
 def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0):
@@ -186,58 +172,67 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
         test_lambda=test_lambda, 
         fixed_lambda_val=fixed_lambda_val)
 
+
+
     # load diabetes data from sklearn
     diabetes = load_diabetes(as_frame=True)
     X = diabetes.data
-    selected_features = ['bmi', 'bp', 's1']
-    X = X[selected_features]
-    label_names = diabetes.feature_names
     y = diabetes.target
-    Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=22)
+
+    # select features
+    selected_features = ['age', 'sex', 'bmi', 'bp', 's1', 's2', 's3', 's4', 's5', 's6']
+    X = X[selected_features]
+    
+    # center y
+    y_centered = y - np.mean(y) # center y like in the bl paper
+
+    # split and scale
+    Xtrain, Xtest, ytrain, ytest = train_test_split(X, y_centered, test_size=0.2, random_state=22)
     scaler = StandardScaler()
     Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
     Xtest = scaler.transform(Xtest) # scale test data
 
-
-    gp_likelihood = PenalizedGPLikelihood_pymc(Xtrain, ytrain)
     with pm.Model() as model:
 
         # priors
-        sigma2_noise = pm.InverseGamma("sigma2_noise", 3.0, 1.0)
-        sigma2_gp = pm.InverseGamma("sigma2_gp", 3.0, 1.0)
+
+        #sigma2_noise = pm.InverseGamma("sigma2_noise", 5.0, 1.5)
+        sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=0.25)
+
+        # sigma2_gp = pm.InverseGamma("sigma2_gp", 3.0, 1.0)
 
         # lambda (deterministic or gamma)
-        if test_lambda:
-            fixed_lambda2_val = fixed_lambda_val **2
-            lambda2 = pm.Deterministic("lambda2", pm.math.constant(fixed_lambda2_val)) 
-        else:
-            lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
+        # if test_lambda:
+        #     fixed_lambda2_val = fixed_lambda_val **2
+        #     lambda2 = pm.Deterministic("lambda2", pm.math.constant(fixed_lambda2_val)) 
+        # else:
+        #     lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
+
+        lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
 
         # tau squared
         tau2 = pm.Exponential("tau2", lambda2/2.0, shape=X.shape[1]) # depends on lambda2
-        tau = pm.math.sqrt(tau2)
 
         # beta coefficents
-        beta = pm.Normal("beta", 0.0, sigma2_noise * tau, shape=X.shape[1])  # depends on tau, sigma2_noise
+        beta = pm.Normal("beta", mu = 0.0, sigma = pt.sqrt(sigma2_noise * tau2), shape=X.shape[1])  # depends on tau^2, sigma2_noise, but expects sd not var
 
-        # lengthscales
-        ell = pm.Lognormal("ell", 0.0, 1.0, shape=X.shape[1])
-        
+        # using standard likelihood for testing
+        y_obs = pm.Normal(
+            "y_obs", 
+            mu=pt.dot(Xtrain, beta), 
+            sigma=pt.sqrt(sigma2_noise), 
+            observed=ytrain)
+
+        #custom_lik = custom_likelihood(Xtrain, ytrain)
+        #pm.Potential("lasso_logp", custom_lik.logProbability(sigma2_noise, tau2, beta))
+
         # step type
         if steptype == 'Metropolis':
             step = pm.Metropolis()
         elif steptype == 'NUTS':
-            step = pm.NUTS()
-
-        # define likelihood function
-        pm.Potential(
-            "gp_likelihood",
-            gp_likelihood.logProbability(
-                sigma2_noise,
-                sigma2_gp,
-                tau2,
-                beta,
-                ell) )
+            step = pm.NUTS(
+                target_accept=0.9
+            )
 
         # run model
         trace = pm.sample(
@@ -249,6 +244,18 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
             progressbar=True
         )
 
+
+
+
+
+
+
+
+
+
+
+
+
     # save results
 
     posterior_df = process_pymc_results(outdir, trace, Xtrain)
@@ -257,7 +264,7 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
     
 
     summary = pm.summary(trace, hdi_prob=0.95)  # 95% credible interval
-    print('95% Credible Interval', summary)
+    print(summary)
     summary.to_csv(os.path.join(outdir, 'posterior_summary.csv'))
 
 
