@@ -20,11 +20,9 @@ from sklearn.preprocessing import StandardScaler
 
 
 # make directory for the run
-def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 4, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0):
-    if test_lambda:
-        path =  f"results/lasso/{sampler}/lambda_testing/dr{numdraws}_t{numtune}/lbda{fixed_lambda_val}/ch{numchains}_{steptype}/sd{seed}"
-    else:
-        path =  f"results/lasso/all_features/v2/{sampler}_dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 4, steptype = 'Metropolis', seed=1):
+    
+    path =  f"results/lasso/all_features/v3/{sampler}_dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "sampler": sampler,
@@ -35,8 +33,7 @@ def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 4, ste
         "step": steptype,
         "datetime": datetime.now().isoformat() # capture run time
         }
-    if test_lambda: # add to metadata json if there is a fixed lambda
-        metadata["fixed_lambda"] = fixed_lambda_val
+    
     with open(f"{path}/metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
     return path
@@ -117,49 +114,8 @@ def make_trace_plots(outdir, trace, X):
 
 
 
-
-class custom_likelihood:
-    def __init__(self, X, y):
-        self.X = np.asarray(X, dtype=np.float64)
-        self.y = np.asarray(y, dtype=np.float64)
-        self.n, self.p = X.shape
-
-    def rbf_kernel(self, X, ell, sigma2_gp):
-        """ compute RBF kernel using pytensor """
-        X_scaled = X / ell
-        diff = X_scaled[:, None, :] - X_scaled[None, :, :]
-        squared_dist = pt.sum(diff ** 2, axis=2)
-        K = sigma2_gp * pt.exp(-0.5 * squared_dist)
-        return K
-
-    def logProbability(self, sigma2_noise, tau2, beta):
-       
-        # residuals
-        residuals = self.y - pt.dot(self.X, beta)
-
-        # y ~ N(X*beta, sigma^2_noise)
-        log_lik_data = (
-            -0.5 * self.n * pt.log(2 * pt.pi * sigma2_noise)
-            -0.5 / sigma2_noise * pt.dot(residuals, residuals)
-        )
-
-        # beta ~ N(0, sigma^2_noise * D_tau^2)
-        sigma2_D = sigma2_noise * pt.diag(tau2)
-        inv_sigma2_D = 1 / (sigma2_D + 1e-12) # add epsilon for stability
-        logdet = pt.sum(pt.log(sigma2_D + 1e-12))
-        quadratic = pt.sum((beta**2) * inv_sigma2_D)
-
-        log_lik_beta = (
-            -0.5 * self.p * pt.log(2 * pt.pi)
-            -0.5 * logdet
-            -0.5 * quadratic
-            )
-        
-        return log_lik_data + log_lik_beta
-
-
 # main call
-def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0):
+def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', seed=1):
 
     # make output directory
     outdir = make_run_dir(
@@ -168,11 +124,7 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
         numtune=numtune, 
         numchains=numchains, 
         steptype=steptype, 
-        seed=seed, 
-        test_lambda=test_lambda, 
-        fixed_lambda_val=fixed_lambda_val)
-
-
+        seed=seed)
 
     # load diabetes data from sklearn
     diabetes = load_diabetes(as_frame=True)
@@ -199,21 +151,8 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
         #sigma2_noise = pm.InverseGamma("sigma2_noise", 5.0, 1.5)
         sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=0.25)
 
-        # sigma2_gp = pm.InverseGamma("sigma2_gp", 3.0, 1.0)
-
-        # lambda (deterministic or gamma)
-        # if test_lambda:
-        #     fixed_lambda2_val = fixed_lambda_val **2
-        #     lambda2 = pm.Deterministic("lambda2", pm.math.constant(fixed_lambda2_val)) 
-        # else:
-        #     lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
-
         lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
-
-        # tau squared
         tau2 = pm.Exponential("tau2", lambda2/2.0, shape=X.shape[1]) # depends on lambda2
-
-        # beta coefficents
         beta = pm.Normal("beta", mu = 0.0, sigma = pt.sqrt(sigma2_noise * tau2), shape=X.shape[1])  # depends on tau^2, sigma2_noise, but expects sd not var
 
         # using standard likelihood for testing
@@ -222,9 +161,6 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
             mu=pt.dot(Xtrain, beta), 
             sigma=pt.sqrt(sigma2_noise), 
             observed=ytrain)
-
-        #custom_lik = custom_likelihood(Xtrain, ytrain)
-        #pm.Potential("lasso_logp", custom_lik.logProbability(sigma2_noise, tau2, beta))
 
         # step type
         if steptype == 'Metropolis':
@@ -276,8 +212,6 @@ if __name__ == "__main__":
     parser.add_argument('--numchains', type=int, default=6, help='Number of chains (default: 6)')
     parser.add_argument('--seed', type=int, default=1, help='Random seed (default: 1)')
     parser.add_argument('--step', type=str, default='Metropolis', help='Sampler step type (default: Metropolis)')
-    parser.add_argument('--test_lambda', type=bool, default=False, help = 'Experiment with a set lambda?')
-    parser.add_argument('--fixed_lambda_val', type=float, default=0.05, help = 'If testing lambda, choose fixed val')
     args = parser.parse_args()
 
     main(
@@ -285,7 +219,5 @@ if __name__ == "__main__":
         numtune = args.numtune,
         numchains = args.numchains,
         seed = args.seed,
-        steptype = args.step,
-        test_lambda = args.test_lambda,
-        fixed_lambda_val = args.fixed_lambda_val
+        steptype = args.step
         )
