@@ -149,7 +149,8 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
         # priors
 
         #sigma2_noise = pm.InverseGamma("sigma2_noise", 5.0, 1.5)
-        sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=0.25)
+
+        sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=1)
 
         lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
         tau2 = pm.Exponential("tau2", lambda2/2.0, shape=X.shape[1]) # depends on lambda2
