@@ -31,6 +31,8 @@ import arviz as az
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import root_mean_squared_error
+from sklearn.datasets import load_diabetes
 
 
 # make directory for the run
@@ -136,16 +138,11 @@ def make_trace_plots(outdir, trace, X):
 
     print(f"Trace plots saved to {outdir}/trace_plots.png")
 
-
-def compute_rmse(Xtrain, ytrain, Xtest, ytest):
-    ...
-
-
 def diabetes_data_init(choose_features = 'all'):
     '''
     load and prepare diabetes data from sklearn
     '''
-    from sklearn.datasets import load_diabetes
+    
     diabetes = load_diabetes(as_frame=True)
 
     if choose_features == 'all':
@@ -163,6 +160,15 @@ def diabetes_data_init(choose_features = 'all'):
 
     return Xtrain, Xtest, ytrain, ytest
 
+
+def predict_and_rmse(Xtrain, ytrain, Xtest, ytest):
+    ...
+    
+    ytrain_pred = ...
+    ytest_pred = ...
+
+    train_rmse = root_mean_squared_error(ytrain, ytrain_pred)
+    test_rmse = root_mean_squared_error(ytest, ytest_pred)
 
 
 class GPLikelihood_pymc:
