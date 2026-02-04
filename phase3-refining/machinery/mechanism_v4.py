@@ -5,16 +5,18 @@
 main differences: 
 - regularization handled only in prior (no lambda term in likelihood)
 - likelihood only uses gp structure
-- adding rmse function
+- adding prediction and rmse function
 
+- double checked for C vs K in covariance matrix
+- double checked which sigma
 
-/// to activate venv:
+/// to run:
+cd Desktop/GitHub/IEMS399-GP/phase3-refining
 conda activate venv
 python machinery/mechanism_v4.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
 /// 
+
 '''
-
-
 
 # imports
 from datetime import datetime
@@ -24,6 +26,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 import os
+from pathlib import Path
 
 import pytensor.tensor as pt
 import pymc as pm
@@ -36,14 +39,15 @@ from sklearn.datasets import load_diabetes
 
 
 # make directory for the run
-def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0):
+def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
     if test_lambda:
-        path =  f"results/v4/{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v4/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
         
     else:
-        path =  f"results/v4/{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v4/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
+        "data": data,
         "sampler": sampler,
         "draws": numdraws,
         "tune": numtune,
@@ -138,6 +142,8 @@ def make_trace_plots(outdir, trace, X):
 
     print(f"Trace plots saved to {outdir}/trace_plots.png")
 
+
+
 def diabetes_data_init(choose_features = 'all'):
     '''
     load and prepare diabetes data from sklearn
@@ -161,14 +167,118 @@ def diabetes_data_init(choose_features = 'all'):
     return Xtrain, Xtest, ytrain, ytest
 
 
-def predict_and_rmse(Xtrain, ytrain, Xtest, ytest):
-    ...
+def synthetic_data_init(
+        size = 1000,
+        active_proportion = 10,
+        noise = 0.1,
+        seed = 0,
+        rep = 1,
+        features = 'all'):
+
+    '''
+    load and set up the synthetic datasets
+    need to add a way to save meta data for synthetic data
     
-    ytrain_pred = ...
-    ytest_pred = ...
+    '''
+    # set up path according to input params
+    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data") # main folder
+    folder_name = f"N11000_AP{active_proportion}_noise{noise}_seed{seed}" # first folder
+    subfolder_name = f"Size{size}" # second folder
+    path = base_path / folder_name / subfolder_name / f"Rep{rep}.csv"
+
+    df = pd.read_csv(path)
+
+    if features == 'all':
+        X = df.drop(columns=['y']).values
+    else:
+        X = df[features].values
+        
+    y = df['y'].values
+
+    Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=22)
+
+    # scale
+    scaler = StandardScaler()
+    Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
+    Xtest = scaler.transform(Xtest) # scale test data
+    return Xtrain, Xtest, ytrain, ytest
+
+
+
+def rbf_kernel(X1, X2, ell, sigma2):
+        """ 
+        compute RBF kernel using numpy 
+        """
+        X1_scaled = X1 / ell
+        X2_scaled = X2 / ell
+        diff = X1_scaled[:, None, :] - X2_scaled[None, :, :]
+        squared_dist = np.sum(diff ** 2, axis=2)
+        K = sigma2 * np.exp(-0.5 * squared_dist)
+        return K
+
+
+def predict_and_save(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
+    ''' 
+    make predictions
+    uses posterior means to make predictions
+    computes rmse
+    saves results to file
+
+    '''
+
+    # using mean to test
+    beta_hat = trace.posterior["beta"].mean(dim=("chain", "draw")).values
+    ell_hat = trace.posterior["ell"].mean(dim=("chain", "draw")).values
+    sigma2_gp_hat = trace.posterior["sigma2_gp"].mean(dim=("chain", "draw")).values
+    sigma2_noise_hat = trace.posterior["sigma2_noise"].mean(dim=("chain", "draw")).values
+
+    # extract residuals
+    residuals = ytrain - Xtrain @ beta_hat
+
+    # make covariance matrices
+    Ktrain = rbf_kernel(Xtrain, Xtrain, ell_hat, sigma2_gp_hat)
+    Ktest = rbf_kernel(Xtest, Xtrain, ell_hat, sigma2_gp_hat)
+
+    Ctrain = Ktrain + sigma2_noise_hat * np.eye(len(Xtrain))
+    alpha = np.linalg.solve(Ctrain, residuals)
+
+    # create predictions
+    ftrain = Ktrain @ alpha
+    ftest = Ktest @ alpha
+
+    ytrain_pred = Xtrain @ beta_hat + ftrain
+    ytest_pred = Xtest @ beta_hat + ftest
 
     train_rmse = root_mean_squared_error(ytrain, ytrain_pred)
     test_rmse = root_mean_squared_error(ytest, ytest_pred)
+
+    print(f'Train RMSE: {train_rmse}')
+    print(f'Test RMSE: {test_rmse}')
+
+
+    run_dir = Path(run_dir)
+
+    # create a file to save predictions
+    df_train = pd.DataFrame({
+        "split": "train",
+        "y_true": ytrain,
+        "y_pred": ytrain_pred
+    })
+    df_test = pd.DataFrame({
+        "split": "test",
+        "y_true": ytest,
+        "y_pred": ytest_pred
+    })
+    df_predictions = pd.concat([df_train, df_test], ignore_index=True)
+    df_predictions.to_csv(run_dir / "predictions_post_mean.csv", index=False)
+
+    # create a file to save rmse
+    df_rmse = pd.DataFrame({
+        "split": ["train", "test"],
+        "rmse": [train_rmse, test_rmse]
+    })
+    df_rmse.to_csv(run_dir / "rmse_results.csv", index=False)
+
 
 
 class GPLikelihood_pymc:
@@ -180,12 +290,13 @@ class GPLikelihood_pymc:
     def rbf_kernel(self, X, ell, sigma2_gp):
         """ 
         compute RBF kernel using pytensor 
+
         """
         X_scaled = X / ell
         diff = X_scaled[:, None, :] - X_scaled[None, :, :]
         squared_dist = pt.sum(diff ** 2, axis=2)
         K = sigma2_gp * pt.exp(-0.5 * squared_dist)
-        return K
+        return K # returns K, not C = K + \sigma^2_GP * I
 
     def logProbability(self, sigma2_noise, sigma2_gp, beta, ell):
         """ 
@@ -194,25 +305,23 @@ class GPLikelihood_pymc:
 
         """
         residuals = self.y - pt.dot(self.X, beta) # y - XB
-        C = self.rbf_kernel(self.X, ell, sigma2_gp)  
+        K = self.rbf_kernel(self.X, ell, sigma2_gp) # C = K + \sigma^2_GP * I
+        C = K + sigma2_noise * pt.eye(self.n)
 
         log_lik_gp = (
             -0.5 * self.n * pt.log(2 * pt.pi)
-            -0.5 * pt.nlinalg.slogdet(C + sigma2_noise * pt.eye(self.n))[1]
-            -0.5 * pt.dot(residuals, pt.slinalg.solve(C + sigma2_noise * pt.eye(self.n), residuals))
+            -0.5 * pt.nlinalg.slogdet(C)[1]
+            -0.5 * pt.dot(residuals, pt.slinalg.solve(C, residuals))
             )
         
-        return log_lik_gp #+ log_lik_beta
+        return log_lik_gp
     
-
-
-    
-
 # main call
-def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', seed=1, test_lambda=True, fixed_lambda_val=5):
+def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', seed=1, test_lambda=True, fixed_lambda_val=5, data = 'diabetes'):
 
     # make output directory
     outdir = make_run_dir(
+        data = data,
         sampler="pymc", 
         numdraws=numdraws, 
         numtune=numtune, 
@@ -222,8 +331,17 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
         test_lambda=test_lambda, 
         fixed_lambda_val=fixed_lambda_val)
 
-    # set up sklearn diabetes data
-    Xtrain, Xtest, ytrain, ytest = diabetes_data_init(choose_features = 'all')
+    # set up data
+    if data == 'diabetes':
+        Xtrain, Xtest, ytrain, ytest = diabetes_data_init(choose_features = 'all')
+    elif data == 'synthetic':
+        Xtrain, Xtest, ytrain, ytest = synthetic_data_init(
+            size = 1000,
+            active_proportion = 10,
+            noise = 0.1,
+            seed = 0,
+            rep = 1,
+            features = 'all')
 
     with pm.Model() as model:
 
@@ -239,7 +357,7 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
         sigma2_gp = pm.InverseGamma("sigma2_gp", 3.0, 1.0)
         tau2 = pm.Exponential("tau2", lambda2/2.0, shape=Xtrain.shape[1]) # depends on lambda2
         tau = pm.math.sqrt(tau2)
-        beta = pm.Normal("beta", 0.0, sigma2_noise * tau, shape=Xtrain.shape[1])  # depends on tau, sigma2_noise
+        beta = pm.Normal("beta", 0.0, pm.math.sqrt(sigma2_noise * tau), shape=Xtrain.shape[1])  # depends on tau, sigma2_noise
         ell = pm.Lognormal("ell", 0.0, 1.0, shape=Xtrain.shape[1])
 
         gp_likelihood = GPLikelihood_pymc(Xtrain, ytrain) 
@@ -281,6 +399,9 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
     print('95% Credible Interval', summary)
     summary.to_csv(os.path.join(outdir, 'posterior_summary.csv'))
 
+    # make predictions and save
+    predict_and_save(trace, Xtrain, ytrain, Xtest, ytest, outdir)
+
 
 if __name__ == "__main__":
     import argparse
@@ -292,6 +413,7 @@ if __name__ == "__main__":
     parser.add_argument('--step', type=str, default='Metropolis', help='Sampler step type (default: Metropolis)')
     parser.add_argument('--test_lambda', type=bool, default=True, help = 'Experiment with a set lambda?')
     parser.add_argument('--fixed_lambda_val', type=float, default=5, help = 'If testing lambda, choose fixed val')
+    parser.add_argument('--data', type=str, default='diabetes', help = 'Choose data: diabetes or synthetic')
     args = parser.parse_args()
 
     main(
@@ -301,5 +423,6 @@ if __name__ == "__main__":
         seed = args.seed,
         steptype = args.step,
         test_lambda = args.test_lambda,
-        fixed_lambda_val = args.fixed_lambda_val
+        fixed_lambda_val = args.fixed_lambda_val,
+        data = args.data
         )
