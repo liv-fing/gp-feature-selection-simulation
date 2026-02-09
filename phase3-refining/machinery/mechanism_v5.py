@@ -4,6 +4,12 @@
 '''
 main differences: 
 - using OLS to set initial values for beta
+- using MLE for sigma2_noise to set initial value
+- testing scaling of X by 10
+
+questions:
+- when creating K from rbf kernel, should I just use the residuals?
+
 
 
 
@@ -48,10 +54,10 @@ def increase_scale(X, y, scale_factor=10):
 # make directory for the run
 def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
     if test_lambda:
-        path =  f"results/v5/no_scale/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v5/constrained_sigma/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
         
     else:
-        path =  f"results/v5/no_scale/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v5/constrained_sigma/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "data": data,
