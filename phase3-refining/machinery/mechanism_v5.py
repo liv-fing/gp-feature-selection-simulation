@@ -5,7 +5,6 @@
 main differences: 
 - using OLS to set initial values for beta
 - using MLE for sigma2_noise to set initial value
-- testing scaling of X by 10
 
 questions:
 - when creating K from rbf kernel, should I just use the residuals?
@@ -41,23 +40,13 @@ from sklearn.metrics import root_mean_squared_error
 from sklearn.datasets import load_diabetes
 
 
-# data enlarger for diabetes
-def increase_scale(X, y, scale_factor=.10):
-    '''
-    increases the magnitude of the diabetes data to make coefficients larger and more visible
-    '''
-    X_scaled = X #* scale_factor
-    y_scaled = y #* scale_factor
-    return X_scaled, y_scaled
-
-
 # make directory for the run
 def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
     if test_lambda:
-        path =  f"results/v5/constrained_sigma/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v5_large/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
         
     else:
-        path =  f"results/v5/constrained_sigma/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v5_large/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "data": data,
@@ -180,11 +169,6 @@ def diabetes_data_init(choose_features = 'all'):
     Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
     Xtest = scaler.transform(Xtest) # scale test data
 
-    # option, to increase scale of data 
-    Xtrain, ytrain = increase_scale(Xtrain, ytrain, scale_factor=10)
-    Xtest, ytest = increase_scale(Xtest, ytest, scale_factor=10)
-
-
     return Xtrain, Xtest, ytrain, ytest
 
 
@@ -202,7 +186,7 @@ def synthetic_data_init(
     
     '''
     # set up path according to input params
-    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data") # main folder
+    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data_large/simulated_datasets_large_coef") # main folder
     folder_name = f"N11000_AP{active_proportion}_noise{noise}_seed{seed}" # first folder
     subfolder_name = f"Size{size}" # second folder
     path = base_path / folder_name / subfolder_name / f"Rep{rep}.csv"

@@ -41,10 +41,10 @@ from sklearn.datasets import load_diabetes
 # make directory for the run
 def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
     if test_lambda:
-        path =  f"results/v4/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v4_large/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
         
     else:
-        path =  f"results/v4/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v4_large/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "data": data,
@@ -181,7 +181,8 @@ def synthetic_data_init(
     
     '''
     # set up path according to input params
-    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data") # main folder
+
+    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data_large/simulated_datasets_large_coef") # main folder
     folder_name = f"N11000_AP{active_proportion}_noise{noise}_seed{seed}" # first folder
     subfolder_name = f"Size{size}" # second folder
     path = base_path / folder_name / subfolder_name / f"Rep{rep}.csv"
