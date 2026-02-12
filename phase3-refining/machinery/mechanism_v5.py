@@ -42,7 +42,7 @@ from sklearn.datasets import load_diabetes
 
 
 # data enlarger for diabetes
-def increase_scale(X, y, scale_factor=10):
+def increase_scale(X, y, scale_factor=.10):
     '''
     increases the magnitude of the diabetes data to make coefficients larger and more visible
     '''
