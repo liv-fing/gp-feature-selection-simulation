@@ -5,7 +5,7 @@
 specify with command line args: --mechanism [lasso, original, ols]
 
 new form of predictions
-- wrote code, but have to test
+- wrote code, but have to test (takes a very long time)
 - add plots as well
 - do we want rmse distribution or from posterior mean?
 
@@ -26,11 +26,28 @@ cd Desktop/GitHub/IEMS399-GP/phase3-refining
 conda activate venv
 python machinery/mechanism_mega.py 
 --test_lambda True 
---fixed_lambda_val 2.0 
+--fixed_lambda_val 1.0 
 --numtune 0 
 --numdraws 10000 
 --numchains 4 
 --data diabetes
+--mechanism orig
+--predict True
+
+
+Command line structure (with defaults): 
+python machinery/mechanism_mega.py
+--test_lambda True
+--fixed_lambda_val 1.0
+--numtune 0
+--numdraws 10000
+--numchains 4
+--data diabetes
+--mechanism orig
+--predict True
+
+
+
 
 '''
 
@@ -54,7 +71,16 @@ from sklearn.metrics import root_mean_squared_error
 from sklearn.datasets import load_diabetes
 
 # make directory for the run
-def make_run_dir(sampler="pymc", mechanism="orig", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
+def make_run_dir(sampler="pymc", 
+                 mechanism="orig", 
+                 numdraws=2000, 
+                 numtune=1000, 
+                 numchains = 6, 
+                 steptype = 'Metropolis', 
+                 seed=1, 
+                 test_lambda=False, 
+                 fixed_lambda_val=0, 
+                 data = 'diabetes'):
     if test_lambda:
         day_month = datetime.now().strftime("%d-%m")
         path =  f"results/{mechanism}/{day_month}_{data}/{steptype}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}_ch{numchains}/sd{seed}"
@@ -204,10 +230,6 @@ def make_trace_plots(outdir, trace, X, mechanism):
     plt.close()
 
 
-
-    
-
-
 def diabetes_data_init(choose_features = 'all'):
     '''
     load and prepare diabetes data from sklearn
@@ -283,7 +305,6 @@ def rbf_kernel(X1, X2, ell, sigma2):
         return K
 
 
-
 def predictions_lasso(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
     '''
     if mechanism == "lasso"
@@ -353,6 +374,8 @@ def predictions(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
     also calculate rmse for each draw
     '''
 
+    print('Calculating predictions for each posterior sample...')
+
     # make directory for predictions
     run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -378,15 +401,25 @@ def predictions(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
     sigma2_gp_flat = sigma2_gp.reshape(samples) # shape (samples,)
     sigma2_noise_flat = sigma2_noise.reshape(samples) # shape (samples,)
 
-    # check shapes
-    print(f"beta shape: {beta_flat.shape}")
-    print(f"ell shape: {ell_flat.shape}")
-    print(f"sigma2_gp shape: {sigma2_gp_flat.shape}")
-    print(f"sigma2_noise shape: {sigma2_noise_flat.shape}")
+    # # check shapes
+    # print(f"beta shape: {beta_flat.shape}")
+    # print(f"ell shape: {ell_flat.shape}")
+    # print(f"sigma2_gp shape: {sigma2_gp_flat.shape}")
+    # print(f"sigma2_noise shape: {sigma2_noise_flat.shape}")
 
-    # empty arrays for preds and rmses
-    ytrain_preds = np.zeros((samples, n_train))
+    # store y = X * beta + f_pred
+    ytrain_preds = np.zeros((samples, n_train)) 
     ytest_preds = np.zeros((samples, n_test))
+
+    # store f_pred (just gp component)
+    ftrain_preds = np.zeros((samples, n_train)) 
+    ftest_preds = np.zeros((samples, n_test)) 
+
+    # store X * beta (just linear component)
+    Xbeta_train_preds = np.zeros((samples, n_train))
+    Xbeta_test_preds = np.zeros((samples, n_test))
+
+    # store rmse for each sample
     train_rmses = np.zeros(samples)
     test_rmses = np.zeros(samples)
 
@@ -415,9 +448,13 @@ def predictions(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
         ytrain_pred = Xtrain @ beta_s + ftrain
         ytest_pred = Xtest @ beta_s + ftest
 
-        # save predictions and rmse
+        # save 
         ytrain_preds[s] = ytrain_pred
         ytest_preds[s] = ytest_pred
+        ftrain_preds[s] = ftrain
+        ftest_preds[s] = ftest
+        Xbeta_train_preds[s] = Xtrain @ beta_s
+        Xbeta_test_preds[s] = Xtest @ beta_s
         train_rmses[s] = root_mean_squared_error(ytrain, ytrain_pred)
         test_rmses[s] = root_mean_squared_error(ytest, ytest_pred)
 
@@ -425,33 +462,46 @@ def predictions(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
     # --- outputs ---
 
     # posterior means
-    ytrain_mean = ytrain_preds.mean(axis=0)
-    ytest_mean = ytest_preds.mean(axis=0)
+    ytrain_means = ytrain_preds.mean(axis=0) # shape (n_train,)
+    ytest_means = ytest_preds.mean(axis=0) # shape (n_test,)
 
     # 90% credible intervals
-    ytrain_p05, ytrain_p95 = np.quantile(ytrain_preds, [0.05, 0.95], axis=0)
-    ytest_p05,  ytest_p95  = np.quantile(ytest_preds,  [0.05, 0.95], axis=0)
+    ytrain_p05, ytrain_p95 = np.quantile(ytrain_preds, [0.05, 0.95], axis=0) # shape (n_train,)
+    ytest_p05,  ytest_p95  = np.quantile(ytest_preds,  [0.05, 0.95], axis=0) # shape (n_test,)
+
+    # gp predictions
+    ftrain_means = ftrain_preds.mean(axis=0) # shape (n_train,)
+    ftest_means = ftest_preds.mean(axis=0) # shape (n_test,)
+
+    # linear predictions
+    Xbeta_train_means = Xbeta_train_preds.mean(axis=0) # shape (n_train,)
+    Xbeta_test_means = Xbeta_test_preds.mean(axis=0) # shape (n_test,)
 
     # rmse from posterior mean
-    train_rmse = root_mean_squared_error(ytrain, ytrain_mean)
-    test_rmse = root_mean_squared_error(ytest, ytest_mean)
+    train_rmse = root_mean_squared_error(ytrain, ytrain_means) # scalar rmse
+    test_rmse = root_mean_squared_error(ytest, ytest_means) # scalar rmse
     print(f'Train RMSE (posterior mean): {train_rmse}')
     print(f'Test RMSE (posterior mean): {test_rmse}')
 
     predictions_df_train = pd.DataFrame({ # ------- add in individual gp and beta parts ------
         "split": "train",
         "y_true": ytrain,
-        "y_pred_mean": ytrain_mean,
+        "y_pred_mean": ytrain_means,
         "y_pred_p05": ytrain_p05,
         "y_pred_p95": ytrain_p95,
+        "f_pred_mean": ftrain_means,
+        "Xbeta_pred_mean": Xbeta_train_means
+
     })
 
     predictions_df_test = pd.DataFrame({
         "split": "test",
         "y_true": ytest,
-        "y_pred_mean": ytest_mean,
+        "y_pred_mean": ytest_means,
         "y_pred_p05": ytest_p05,
         "y_pred_p95": ytest_p95,
+        "f_pred_mean": ftest_means,
+        "Xbeta_pred_mean": Xbeta_test_means
     })
 
     df_summary = pd.concat([predictions_df_train, predictions_df_test], ignore_index=True)
@@ -462,13 +512,66 @@ def predictions(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
 
 def plot_predictions(prediction_summary_path):
     '''
-    1. plot X @ beta vs true values for train and test
-    2. plot gp predictions vs true values for train and test
-    3. plot X @ beta + gp predictions vs true values for train and test
+    1. plot predicted vs true values with 90% credible intervals
+    2. plot gp prediction and linear component vs true values 
 
-    4. plot gp output with respect to one feature (like bmi) for train and test, with credible intervals
 
     '''
+    prediction_summary_path = Path(prediction_summary_path)
+    df = pd.read_csv(prediction_summary_path)
+    train = df[df['split'] == 'train']
+    test = df[df['split'] == 'test']
+
+    # plot 1: true vs predicted values with 90% credible intervals
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.scatter(train['y_true'], train['y_pred_mean'], alpha=0.5, label='Mean Prediction')
+    plt.scatter(train['y_true'], train['y_pred_p05'], alpha=0.5, label='5th Percentile', color='orange')
+    plt.scatter(train['y_true'], train['y_pred_p95'], alpha=0.5, label='95th Percentile', color='green')
+    plt.plot([train['y_true'].min(), train['y_true'].max()], [train['y_true'].min(), train['y_true'].max()], 'r--')
+    plt.xlabel('True Values')
+    plt.ylabel('Predicted Values')
+    plt.title('Train Set')
+    plt.legend()
+    plt.subplot(1, 2, 2)
+    plt.scatter(test['y_true'], test['y_pred_mean'], alpha=0.5, label='Mean Prediction')
+    plt.scatter(test['y_true'], test['y_pred_p05'], alpha=0.5, label='5th Percentile', color='orange')
+    plt.scatter(test['y_true'], test['y_pred_p95'], alpha=0.5, label='95th Percentile', color='green')
+    plt.plot([test['y_true'].min(), test['y_true'].max()], [test['y_true'].min(), test['y_true'].max()], 'r--')
+    plt.xlabel('True Values')
+    plt.ylabel('Predicted Values')
+    plt.title('Test Set')
+    plt.legend()
+    plt.tight_layout()
+    plt.suptitle('True vs Predicted Values with 90% Credible Intervals', fontsize=14) 
+    plt.subplots_adjust(top=0.88) # adjust the top of the plots to make room for the title
+    plt.savefig(prediction_summary_path.parent / "predicted_vs_true.png") # save plot to file
+
+    # plot 2: gp prediction and linear component vs true values
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.scatter(train['y_true'], train['f_pred_mean'], alpha=0.5, label='GP Prediction')
+    plt.scatter(train['y_true'], train['Xbeta_pred_mean'], alpha=0.5, label='Linear Prediction', color='green')
+    plt.plot([train['y_true'].min(), train['y_true'].max()], [train['y_true'].min(), train['y_true'].max()], 'r--')
+    plt.xlabel('True Values')
+    plt.ylabel('Predicted Values')
+    plt.title('Train Set')
+    plt.legend()
+    plt.subplot(1, 2, 2)
+    plt.scatter(test['y_true'], test['f_pred_mean'], alpha=0.5, label='GP Prediction')
+    plt.scatter(test['y_true'], test['Xbeta_pred_mean'], alpha=0.5, label='Linear Prediction', color='green')
+    plt.plot([test['y_true'].min(), test['y_true'].max()], [test['y_true'].min(), test['y_true'].max()], 'r--')
+    plt.xlabel('True Values')
+    plt.ylabel('Predicted Values')
+    plt.title('Test Set')
+    plt.legend()
+    plt.tight_layout()
+    plt.suptitle('GP vs Linear Components of Prediction for Train and Test', fontsize=14) 
+    plt.subplots_adjust(top=0.88) # adjust the top of the plots to make room for the title
+    plt.savefig(prediction_summary_path.parent / "gp_vs_linear.png") # save plot to file
+
+    print(f"\nPrediction plots saved to {prediction_summary_path.parent}/predicted_vs_true.png and {prediction_summary_path.parent}/gp_vs_linear.png")
+
 
 
 def starting_points(Xtrain, ytrain):
@@ -526,7 +629,16 @@ class GPLikelihood_pymc:
         return log_lik_gp
     
 # main call
-def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', seed=1, test_lambda=True, fixed_lambda_val=5, data = 'diabetes', mechanism = 'orig'):
+def main(numdraws=1000, 
+         numtune=500, 
+         numchains = 4, 
+         steptype = 'Metropolis', 
+         seed=1, 
+         test_lambda=True, 
+         fixed_lambda_val=5, 
+         data = 'diabetes', 
+         mechanism = 'orig', 
+         predict = False):
 
     # make output directory
     outdir = make_run_dir(
@@ -553,9 +665,6 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
             rep = 1,
             features = 'all')
         
-
-    
-
     with pm.Model() as model:
 
          # lambda (deterministic or gamma)
@@ -598,8 +707,6 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
             progressbar=True
             )
             
-
-
 
         elif mechanism == 'orig': # original model
 
@@ -692,16 +799,24 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
     posterior_df.to_csv(os.path.join(outdir, 'posterior_results.csv'), index=False)
     make_trace_plots(outdir, trace, Xtrain, mechanism)
     
-
     summary = pm.summary(trace, hdi_prob=0.95)  # 95% credible interval
-    print('95% Credible Interval', summary)
+    print('95% Credible Interval\n', summary)
     summary.to_csv(os.path.join(outdir, 'posterior_summary.csv'))
 
-    # make predictions and save
-    if mechanism == 'lasso':
-        predictions_lasso(trace, Xtrain, ytrain, Xtest, ytest, outdir)
-    else:
-        predictions(trace, Xtrain, ytrain, Xtest, ytest, outdir)
+    if predict:
+        # make predictions and save
+        if mechanism == 'lasso':
+            predictions_lasso(trace, Xtrain, ytrain, Xtest, ytest, outdir)
+        else:
+            predictions(trace, Xtrain, ytrain, Xtest, ytest, outdir)
+
+    # plot predictions
+    if predict and mechanism != 'lasso': 
+        prediction_summary_path = os.path.join(outdir, 'prediction_summary.csv')
+        plot_predictions(prediction_summary_path)
+
+    if predict and mechanism == 'lasso':
+        print("Predictions calculated and saved, but no plots generated for lasso mechanism yet")
     
 
 
@@ -717,6 +832,7 @@ if __name__ == "__main__":
     parser.add_argument('--fixed_lambda_val', type=float, default=5, help = 'If testing lambda, choose fixed val')
     parser.add_argument('--data', type=str, default='diabetes', help = 'Choose data: diabetes or synthetic')
     parser.add_argument('--mechanism', type=str, default='orig', help = 'Choose mechanism: orig, lasso, ols')
+    parser.add_argument('--predict', type=bool, default=False, help = 'Whether to calculate predictions and rmse from posterior samples')
     args = parser.parse_args()
 
     main(
@@ -728,5 +844,7 @@ if __name__ == "__main__":
         test_lambda = args.test_lambda,
         fixed_lambda_val = args.fixed_lambda_val,
         data = args.data,
-        mechanism = args.mechanism
+        mechanism = args.mechanism,
+        predict = args.predict
         )
+    
