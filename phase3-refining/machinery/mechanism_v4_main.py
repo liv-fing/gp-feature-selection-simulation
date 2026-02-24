@@ -14,6 +14,24 @@ main differences:
 cd Desktop/GitHub/IEMS399-GP/phase3-refining
 conda activate venv
 python machinery/mechanism_v4.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
+
+for lbda in  0.001 0.01; do
+  python machinery/mechanism_v4_main.py \
+    --test_lambda True \
+    --fixed_lambda_val "$lbda" \
+    --numtune 0 \
+    --numdraws 15000 \
+    --numchains 4 \
+    --data synthetic \
+    --step NUTS
+done
+
+
+
+
+
+
+
 /// 
 
 '''
@@ -33,7 +51,6 @@ import pymc as pm
 import arviz as az
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import root_mean_squared_error
 from sklearn.datasets import load_diabetes
 
@@ -41,10 +58,10 @@ from sklearn.datasets import load_diabetes
 # make directory for the run
 def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
     if test_lambda:
-        path =  f"results/v4_large/{data}_{sampler}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v4.4/{data}_{sampler}/small_lengthscale/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
         
     else:
-        path =  f"results/v4_large/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/v4.4/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "data": data,
@@ -160,9 +177,11 @@ def diabetes_data_init(choose_features = 'all'):
     X = X[selected_features]
     y = diabetes.target
     Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=22)
-    scaler = StandardScaler()
-    Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
-    Xtest = scaler.transform(Xtest) # scale test data
+
+    Xtrain = Xtrain.to_numpy()
+    Xtest  = Xtest.to_numpy()
+    ytrain = np.asarray(ytrain)
+    ytest  = np.asarray(ytest)  
 
     return Xtrain, Xtest, ytrain, ytest
 
@@ -198,10 +217,6 @@ def synthetic_data_init(
 
     Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=22)
 
-    # scale
-    # scaler = StandardScaler()
-    # Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
-    # Xtest = scaler.transform(Xtest) # scale test data
     return Xtrain, Xtest, ytrain, ytest
 
 
@@ -360,7 +375,11 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
         tau2 = pm.Exponential("tau2", lambda2/2.0, shape=Xtrain.shape[1]) # depends on lambda2
         tau = pm.math.sqrt(tau2)
         beta = pm.Normal("beta", 0.0, pm.math.sqrt(sigma2_noise * tau), shape=Xtrain.shape[1])  # depends on tau, sigma2_noise
-        ell = pm.Lognormal("ell", 0.0, 1.0, shape=Xtrain.shape[1])
+        ell = pm.Lognormal("ell", mu=-2, sigma=1, shape=Xtrain.shape[1])
+            # tau = 1/sigma2, mean = exp(mu + sigma2/2)
+            # we want it to be less than 100
+            # we want most of them to be smaller
+            # try 
 
         gp_likelihood = GPLikelihood_pymc(Xtrain, ytrain) 
 

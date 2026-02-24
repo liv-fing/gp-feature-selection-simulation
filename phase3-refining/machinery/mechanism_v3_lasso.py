@@ -1,6 +1,12 @@
 
 # mechanism_v3_lasso.py
 
+'''
+
+
+
+'''
+
 # imports
 from datetime import datetime
 from bleach import clean
@@ -16,7 +22,6 @@ import arviz as az
 import pandas as pd
 from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 
 
 # make directory for the run
@@ -140,9 +145,6 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
 
     # split and scale
     Xtrain, Xtest, ytrain, ytest = train_test_split(X, y_centered, test_size=0.2, random_state=22)
-    scaler = StandardScaler()
-    Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
-    Xtest = scaler.transform(Xtest) # scale test data
 
     with pm.Model() as model:
 
@@ -152,8 +154,12 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
 
         sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=1)
 
-        lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
+        #lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso
+        lambda2_val = np.square(0.23)
+        lambda2 = pm.Deterministic("lambda2", pm.math.constant(lambda2_val))
+        
         tau2 = pm.Exponential("tau2", lambda2/2.0, shape=X.shape[1]) # depends on lambda2
+
         beta = pm.Normal("beta", mu = 0.0, sigma = pt.sqrt(sigma2_noise * tau2), shape=X.shape[1])  # depends on tau^2, sigma2_noise, but expects sd not var
 
         # using standard likelihood for testing
