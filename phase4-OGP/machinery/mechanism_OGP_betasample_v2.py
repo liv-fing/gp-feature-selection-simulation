@@ -2,21 +2,28 @@
 
 
 '''
+
+trying to fix
+
+
+
+
+
 Just OGP version of original GP implementation
 This one samples beta
 
 to run: 
 cd Desktop/GitHub/IEMS399-GP/phase4-OGP
 conda activate venv
-python machinery/mechanism_OGP_betasample.py 
---test_lambda True 
---fixed_lambda_val 1.0 
---numtune 0 
---numdraws 100 
---numchains 4 
---data diabetes
---mechanism ogp
---predict 0
+python machinery/mechanism_OGP_betasample_v2.py \
+--test_lambda True \
+--fixed_lambda_val 1.0 \
+--numtune 0 \
+--numdraws 1000 \
+--numchains 4 \
+--data diabetes \
+--mechanism ogp \
+--predict 0 
 '''
 
 
@@ -26,6 +33,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pymc as pm
 import pytensor.tensor as pt
+from pytensor.graph.op import Op
 import os
 from sklearn.preprocessing import StandardScaler
 from scipy.linalg import cho_factor, cho_solve
@@ -35,38 +43,61 @@ from helper_funcs.data_setup import make_run_dir, diabetes_data_init, synthetic_
 from helper_funcs.result_processing import process_pymc_results, make_trace_plots
 from helper_funcs.predicting import predictions_lasso, predictions, plot_predictions, rbf_kernel
 from helper_funcs.make_c_star import make_c_star_matrix
+
+# ORTHOGONAL GP LIKELIHOOD (PYTENSOR OP VERSION)
+class OGPLikelihood_OP(Op):
+    itypes = [pt.dscalar, # sigma2_noise
+              pt.dscalar, # sigma2_gp
+              pt.dvector, # beta
+              pt.dvector] # ell
     
-# ORTHOGONAL GP LIKELIHOOD
-class OGPLikelihood_pymc:
+    otypes = [pt.dscalar] # log likelihood value
+
     def __init__(self, X, y, terms):
         self.X = np.asarray(X, dtype=np.float64)
         self.y = np.asarray(y, dtype=np.float64)
         self.n, self.p = X.shape
         self.terms = terms
-        
-    def compute_c_star(self, ell, sigma2_gp):
-        psi = np.array(ell.eval()) # convert from pt to np
-        sigma2 = float(sigma2_gp.eval()) # concert from pt to np
-        C = make_c_star_matrix(self.X, self.X, psi=psi, sigma2=sigma2, terms=self.terms)
-        return C # np
+        self.counter = 0 # for debugging
 
-    def logProbability(self, sigma2_noise, sigma2_gp, beta, ell):
-        '''
-        same as GPLikelihood but c_star instead of rbf
-        '''
-        residuals = self.y - self.X @ np.array(beta.eval())
-        C = self.compute_c_star(ell, sigma2_gp)
-        C = C + float(sigma2_noise.eval()) * np.eye(self.n) # C + \sigma2 * I
-        # cholesky and log|C|
-        L, lower = cho_factor(C, lower=True, check_finite=False)
-        logdetC = 2.0 * np.sum(np.log(np.diag(L)))
-        Cinv = lambda v: cho_solve((L, lower), v, check_finite=False)
-        # quadratic form
-        qf = float(residuals.T @ Cinv(residuals))
-        # full log likelihood
-        log_lik = -(0.5 * (logdetC + qf + self.n * np.log(2.0 * np.pi)))
-            
-        return pt.as_tensor_variable(log_lik)
+    def perform(self, node, inputs, outputs):
+        sigma2_noise, sigma2_gp, beta, ell = inputs
+        residuals = self.y - self.X @ beta
+
+
+        self.counter += 1
+        print(
+                "perform called",
+                self.counter,
+                "sigma2_noise=", sigma2_noise,
+                "sigma2_gp=", sigma2_gp,
+                "beta0=", beta[0],
+                "ell0=", ell[0],
+        )
+
+        # compute C = C_star + \sigma2_noise * I
+        C = make_c_star_matrix(self.X, self.X, psi=ell, sigma2=sigma2_gp, terms=self.terms)
+        C = C + sigma2_noise * np.eye(self.n) # C + \sigma2 * I
+
+        try:
+            L, lower = cho_factor(C, lower=True, check_finite=False)
+            logdetC = 2.0 * np.sum(np.log(np.diag(L)))
+
+            Cinv_resid = cho_solve((L, lower), residuals, check_finite=False)
+            qf = residuals.T @ Cinv_resid # quadratic form
+
+            log_lik = -0.5 * (
+                logdetC
+                + qf
+                + self.n * np.log(2.0 * np.pi)
+            )
+
+        except Exception:
+            log_lik = -np.inf
+
+        outputs[0][0] = np.asarray(log_lik, dtype=np.float64)       
+
+
 
 # MAIN
 def main(numdraws=1000, 
@@ -121,22 +152,19 @@ def main(numdraws=1000,
 
             # likelihood function with custom GPLikelihood class
             terms = [None] + list(range(1, Xtrain.shape[1] + 1))
-            ogp_likelihood = OGPLikelihood_pymc(Xtrain, ytrain, terms) 
+            ogp_likelihood = OGPLikelihood_OP(Xtrain, ytrain, terms) 
 
-            # step type
-            if steptype == 'Metropolis':
-                step = pm.Metropolis()
-            elif steptype == 'NUTS':
-                step = pm.NUTS()
-
+            # step type (only use Metropolis now)
+            step = pm.Metropolis()
+       
              # likelihood function 
             pm.Potential(
                 "ogp_likelihood",
-                ogp_likelihood.logProbability(
+                ogp_likelihood(
                     sigma2_noise,
                     sigma2_gp,
                     beta,
-                    ell) )
+                    ell) )   
             
             # run model
             trace = pm.sample(

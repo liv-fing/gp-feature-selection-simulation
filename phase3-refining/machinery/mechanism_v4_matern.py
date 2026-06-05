@@ -2,6 +2,12 @@
 # mechanism_v4.py
 
 '''
+
+
+MATERN
+
+
+
 main differences: 
 - regularization handled only in prior (no lambda term in likelihood)
 - likelihood only uses gp structure
@@ -13,7 +19,7 @@ main differences:
 /// to run:
 cd Desktop/GitHub/IEMS399-GP/phase3-refining
 conda activate venv
-python machinery/mechanism_v4.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
+python machinery/mechanism_v4_matern.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
 
 for lbda in  0.001 0.01; do
   python machinery/mechanism_v4_main.py \
@@ -58,10 +64,10 @@ from sklearn.datasets import load_diabetes
 # make directory for the run
 def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
     if test_lambda:
-        path =  f"results/v4.4/{data}_{sampler}/small_lengthscale/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/matern/{data}_{sampler}/small_lengthscale/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
         
     else:
-        path =  f"results/v4.4/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/matern/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "data": data,
@@ -275,8 +281,8 @@ def predict_and_save(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
     residuals = ytrain - Xtrain @ beta_hat
 
     # make covariance matrices
-    Ktrain = rbf_kernel(Xtrain, Xtrain, ell_hat, sigma2_gp_hat)
-    Ktest = rbf_kernel(Xtest, Xtrain, ell_hat, sigma2_gp_hat)
+    Ktrain = matern_kernel(Xtrain, Xtrain, ell_hat, sigma2_gp_hat)
+    Ktest = matern_kernel(Xtest, Xtrain, ell_hat, sigma2_gp_hat)
 
     Ctrain = Ktrain + sigma2_noise_hat * np.eye(len(Xtrain))
     alpha = np.linalg.solve(Ctrain, residuals)
@@ -336,6 +342,24 @@ class GPLikelihood_pymc:
         squared_dist = pt.sum(diff ** 2, axis=2)
         K = sigma2_gp * pt.exp(-0.5 * squared_dist)
         return K # returns K, not C = K + \sigma^2_GP * I
+    
+    def matern_kernel(self, X, ell, sigma2_gp, nu=1.5):
+        """
+        compute ARD Matern kernel using pytensor
+        """
+        X_scaled = X / ell
+        diff = X_scaled[:, None, :] - X_scaled[None, :, :]
+        dist = pt.sqrt(pt.sum(diff ** 2, axis=2))
+        if nu == 0.5:
+            K = sigma2_gp * pt.exp(-dist)
+        elif nu == 1.5:
+            K = sigma2_gp * (1 + pt.sqrt(3) * dist) * pt.exp(-pt.sqrt(3) * dist)
+        elif nu == 2.5:
+            K = sigma2_gp * (1 + pt.sqrt(5) * dist + 5/3 * dist**2) * pt.exp(-pt.sqrt(5) * dist)
+        else:
+            raise ValueError("Unsupported nu value. Use 0.5, 1.5, or 2.5.")
+        
+        return K
 
     def logProbability(self, sigma2_noise, sigma2_gp, beta, ell):
         """ 
@@ -344,7 +368,7 @@ class GPLikelihood_pymc:
 
         """
         residuals = self.y - pt.dot(self.X, beta) # y - XB
-        K = self.rbf_kernel(self.X, ell, sigma2_gp) # C = K + \sigma^2_GP * I
+        K = self.matern_kernel(self.X, ell, sigma2_gp) # C = K + \sigma^2_GP * I
         C = K + sigma2_noise * pt.eye(self.n)
 
         log_lik_gp = (

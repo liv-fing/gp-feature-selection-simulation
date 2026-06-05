@@ -2,18 +2,15 @@
 # mechanism_v4.py
 
 '''
-main differences: 
-- regularization handled only in prior (no lambda term in likelihood)
-- likelihood only uses gp structure
-- adding prediction and rmse function
 
-- double checked for C vs K in covariance matrix
-- double checked which sigma
+
+just gp? 
+
 
 /// to run:
 cd Desktop/GitHub/IEMS399-GP/phase3-refining
 conda activate venv
-python machinery/mechanism_v4.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
+python machinery/mechanism_v4_main copy.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
 
 for lbda in  0.001 0.01; do
   python machinery/mechanism_v4_main.py \
@@ -25,13 +22,6 @@ for lbda in  0.001 0.01; do
     --data synthetic \
     --step NUTS
 done
-
-
-
-
-
-
-
 /// 
 
 '''
@@ -58,10 +48,10 @@ from sklearn.datasets import load_diabetes
 # make directory for the run
 def make_run_dir(sampler="pymc", numdraws=2000, numtune=1000, numchains = 6, steptype = 'Metropolis', seed=1, test_lambda=False, fixed_lambda_val=0, data = 'diabetes'):
     if test_lambda:
-        path =  f"results/v4.4/{data}_{sampler}/small_lengthscale/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/justGP/{data}_{sampler}/small_lengthscale/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
         
     else:
-        path =  f"results/v4.4/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
+        path =  f"results/justGP/{data}_{sampler}/dr{numdraws}_t{numtune}/ch{numchains}_{steptype}/sd{seed}"
     os.makedirs(path, exist_ok=True)
     metadata = { # create metadata json file
         "data": data,
@@ -88,14 +78,14 @@ def process_pymc_results(outdir, trace, X):
 
     clean_df['sigma2_noise'] = (posterior_ds['sigma2_noise']).values
     clean_df['sigma2_gp'] = (posterior_ds['sigma2_gp']).values
-    clean_df['lambda'] = np.sqrt(posterior_ds['lambda2'].values)
+    # clean_df['lambda'] = np.sqrt(posterior_ds['lambda2'].values)
 
     for i in range(num_features):
         ell_i = posterior_ds['ell'].isel(ell_dim_0=i).values
-        beta_i = posterior_ds['beta'].isel(beta_dim_0=i).values
+        # beta_i = posterior_ds['beta'].isel(beta_dim_0=i).values
 
         # add to dataframe
-        clean_df[f'beta{i}'] = beta_i
+        # clean_df[f'beta{i}'] = beta_i
         clean_df[f'ell{i}'] = ell_i
 
     # --- save to CSV ---
@@ -112,7 +102,7 @@ def make_trace_plots(outdir, trace, X):
     # plot: beta, sigma2_noise, sigma2_gp, lambda, ell
     posterior = trace.posterior
 
-    total_axes = 3 + num_features + num_features  # scalars + betas + ells
+    total_axes = 2 + num_features + num_features  # scalars + betas + ells
     fig, axes = plt.subplots(total_axes, 1, figsize=(10, 3 * total_axes))
     
     if num_features + 4 == 1:
@@ -121,7 +111,7 @@ def make_trace_plots(outdir, trace, X):
     scalars = {
         'sigma2_noise': posterior['sigma2_noise'],
         'sigma2_gp': posterior['sigma2_gp'],
-        'lambda': np.sqrt(posterior['lambda2'])
+        # 'lambda': np.sqrt(posterior['lambda2'])
     }
 
     for i, (name, val) in enumerate(scalars.items()):
@@ -131,21 +121,21 @@ def make_trace_plots(outdir, trace, X):
         ax.set_title(f'Trace plot for {name}')
         ax.set_ylabel(name)
 
-    # betas
-    for i in range(num_features):
-        ax = axes[i + 3]  # offset by number of scalars
-        beta_i = posterior['beta'].isel(beta_dim_0=i)
+    # # betas
+    # for i in range(num_features):
+    #     ax = axes[i + 3]  # offset by number of scalars
+    #     beta_i = posterior['beta'].isel(beta_dim_0=i)
 
-        for chain in range(beta_i.sizes['chain']):
-            ax.plot(beta_i.isel(chain=chain).values, alpha=0.4)
-            #ax.set_ylim(-50, 50)  
+    #     for chain in range(beta_i.sizes['chain']):
+    #         ax.plot(beta_i.isel(chain=chain).values, alpha=0.4)
+    #         #ax.set_ylim(-50, 50)  
 
-        ax.set_title(f'Trace plot for beta{i}')
-        ax.set_ylabel(f'beta{i}')
+    #     ax.set_title(f'Trace plot for beta{i}')
+    #     ax.set_ylabel(f'beta{i}')
 
     # ells
     for i in range(num_features):
-        ax = axes[i + 3 + num_features]  # offset after scalars + betas
+        ax = axes[i + 2 + num_features]  # offset after scalars + betas
         ell_i = posterior['ell'].isel(ell_dim_0=i)
         for chain in range(ell_i.sizes['chain']):
             ax.plot(ell_i.isel(chain=chain).values, alpha=0.4)
@@ -221,26 +211,7 @@ def synthetic_data_init(
 
 
 
-def matern_kernel(X1, X2, ell, sigma2, nu=1.5):
-    """ 
-    compute Matern kernel using numpy 
-    check this over
-    """
-    X1_scaled = X1 / ell
-    X2_scaled = X2 / ell
-    diff = X1_scaled[:, None, :] - X2_scaled[None, :, :]
-    dist = np.sqrt(np.sum(diff ** 2, axis=2))
-    
-    if nu == 0.5:
-        K = sigma2 * np.exp(-dist)
-    elif nu == 1.5:
-        K = sigma2 * (1 + np.sqrt(3) * dist) * np.exp(-np.sqrt(3) * dist)
-    elif nu == 2.5:
-        K = sigma2 * (1 + np.sqrt(5) * dist + 5/3 * dist**2) * np.exp(-np.sqrt(5) * dist)
-    else:
-        raise ValueError("Unsupported nu value. Use 0.5, 1.5, or 2.5.")
-    
-    return K
+
 
 
 
@@ -266,13 +237,13 @@ def predict_and_save(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
     '''
 
     # using mean to test
-    beta_hat = trace.posterior["beta"].mean(dim=("chain", "draw")).values
+    # beta_hat = trace.posterior["beta"].mean(dim=("chain", "draw")).values
     ell_hat = trace.posterior["ell"].mean(dim=("chain", "draw")).values
     sigma2_gp_hat = trace.posterior["sigma2_gp"].mean(dim=("chain", "draw")).values
     sigma2_noise_hat = trace.posterior["sigma2_noise"].mean(dim=("chain", "draw")).values
 
     # extract residuals
-    residuals = ytrain - Xtrain @ beta_hat
+    residuals = ytrain #- Xtrain @ beta_hat
 
     # make covariance matrices
     Ktrain = rbf_kernel(Xtrain, Xtrain, ell_hat, sigma2_gp_hat)
@@ -285,8 +256,11 @@ def predict_and_save(trace, Xtrain, ytrain, Xtest, ytest, run_dir):
     ftrain = Ktrain @ alpha
     ftest = Ktest @ alpha
 
-    ytrain_pred = Xtrain @ beta_hat + ftrain
-    ytest_pred = Xtest @ beta_hat + ftest
+    ytrain_pred = ftrain
+    ytest_pred = ftest
+
+    # ytrain_pred = Xtrain @ beta_hat + ftrain
+    # ytest_pred = Xtest @ beta_hat + ftest
 
     train_rmse = root_mean_squared_error(ytrain, ytrain_pred)
     test_rmse = root_mean_squared_error(ytest, ytest_pred)
@@ -336,14 +310,32 @@ class GPLikelihood_pymc:
         squared_dist = pt.sum(diff ** 2, axis=2)
         K = sigma2_gp * pt.exp(-0.5 * squared_dist)
         return K # returns K, not C = K + \sigma^2_GP * I
+    
+    # def matern_kernel(self, X, ell, sigma2_gp, nu=1.5):
+    #     """
+    #     compute ARD Matern kernel using pytensor
+    #     """
+    #     X_scaled = X / ell
+    #     diff = X_scaled[:, None, :] - X_scaled[None, :, :]
+    #     dist = pt.sqrt(pt.sum(diff ** 2, axis=2))
+    #     if nu == 0.5:
+    #         K = sigma2_gp * pt.exp(-dist)
+    #     elif nu == 1.5:
+    #         K = sigma2_gp * (1 + pt.sqrt(3) * dist) * pt.exp(-pt.sqrt(3) * dist)
+    #     elif nu == 2.5:
+    #         K = sigma2_gp * (1 + pt.sqrt(5) * dist + 5/3 * dist**2) * pt.exp(-pt.sqrt(5) * dist)
+    #     else:
+    #         raise ValueError("Unsupported nu value. Use 0.5, 1.5, or 2.5.")
+        
+    #     return K
 
-    def logProbability(self, sigma2_noise, sigma2_gp, beta, ell):
+    def logProbability(self, sigma2_noise, sigma2_gp, ell):
         """ 
         GP log-likelihood only        
         y(*) = f(*) + g(*) + \epsilon
 
         """
-        residuals = self.y - pt.dot(self.X, beta) # y - XB
+        residuals = self.y #- pt.dot(self.X, beta) # y - XB
         K = self.rbf_kernel(self.X, ell, sigma2_gp) # C = K + \sigma^2_GP * I
         C = K + sigma2_noise * pt.eye(self.n)
 
@@ -384,20 +376,20 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
 
     with pm.Model() as model:
 
-        # lambda (deterministic or gamma)
-        if test_lambda:
-            fixed_lambda2_val = fixed_lambda_val **2
-            lambda2 = pm.Deterministic("lambda2", pm.math.constant(fixed_lambda2_val)) 
-        else:
-            lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso # alp
+        # # lambda (deterministic or gamma)
+        # if test_lambda:
+        #     fixed_lambda2_val = fixed_lambda_val **2
+        #     lambda2 = pm.Deterministic("lambda2", pm.math.constant(fixed_lambda2_val)) 
+        # else:
+        #     lambda2 = pm.Gamma("lambda2", 1.0, 1.78) # hyperparameters from bayesian lasso # alp
 
         # priors
         #sigma2_noise = pm.InverseGamma("sigma2_noise", 3.0, 1.0)
         sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=1)
         sigma2_gp = pm.InverseGamma("sigma2_gp", 3.0, 1.0)
-        tau2 = pm.Exponential("tau2", lambda2/2.0, shape=Xtrain.shape[1]) # depends on lambda2
-        tau = pm.math.sqrt(tau2)
-        beta = pm.Normal("beta", 0.0, pm.math.sqrt(sigma2_noise * tau), shape=Xtrain.shape[1])  # depends on tau, sigma2_noise
+        # tau2 = pm.Exponential("tau2", lambda2/2.0, shape=Xtrain.shape[1]) # depends on lambda2
+        # tau = pm.math.sqrt(tau2)
+        # beta = pm.Normal("beta", 0.0, pm.math.sqrt(sigma2_noise * tau), shape=Xtrain.shape[1])  # depends on tau, sigma2_noise
         ell = pm.Lognormal("ell", mu=-2, sigma=1, shape=Xtrain.shape[1])
             # tau = 1/sigma2, mean = exp(mu + sigma2/2)
             # we want it to be less than 100
@@ -419,7 +411,6 @@ def main(numdraws=1000, numtune=500, numchains = 4, steptype = 'Metropolis', see
             gp_likelihood.logProbability(
                 sigma2_noise,
                 sigma2_gp,
-                beta,
                 ell) )
 
         # run model

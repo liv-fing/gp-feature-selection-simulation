@@ -5,6 +5,7 @@ from helper_funcs.data_setup import
     make_run_dir
     diabetes_data_init
     synthetic_data_init
+    new_data_init
     starting_points 
 
 '''
@@ -19,8 +20,7 @@ import os
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import load_diabetes
 from pathlib import Path
-from sklearn.preprocessing import MinMaxScaler
-
+from sklearn.preprocessing import StandardScaler
 
 # RUN DIRECTORY
 def make_run_dir(sampler="pymc", 
@@ -33,8 +33,9 @@ def make_run_dir(sampler="pymc",
                  test_lambda=False, 
                  fixed_lambda_val=0, 
                  data = 'diabetes'):
+    
+    day_month = datetime.now().strftime("%d-%m")
     if test_lambda:
-        day_month = datetime.now().strftime("%d-%m")
         path =  f"results/{mechanism}/{day_month}_{data}/{steptype}/lbda{fixed_lambda_val}/dr{numdraws}_t{numtune}_ch{numchains}/sd{seed}"
         
     else:
@@ -91,12 +92,43 @@ def diabetes_data_init(choose_features = 'all'):
 
     return Xtrain, Xtest, ytrain, ytest
 
+
+def new_data_init():
+    '''
+    placeholder for loading new datasets
+    current: forest fires uci ml
+    '''
+    from ucimlrepo import fetch_ucirepo 
+  
+    # fetch dataset 
+    forest_fires = fetch_ucirepo(id=162) 
+    
+    # data (as pandas dataframes) 
+    X = forest_fires.data.features.drop(columns=['X', 'Y', 'month', 'day']) # drop spatial and temporal features for now, but could add back in later
+
+    y = forest_fires.data.targets 
+    
+
+    print('X shape:', X.shape)
+    print(X.head())
+    
+    Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=22)
+
+    Xtrain = Xtrain.to_numpy()
+    Xtest  = Xtest.to_numpy()
+    ytrain = np.asarray(ytrain)
+    ytest  = np.asarray(ytest)  
+
+    return Xtrain, Xtest, ytrain, ytest
+
+
+
 # SYNTHETIC DATA
 def synthetic_data_init(
-        size = 2000,
-        active_proportion = 50,
+        size = 50,
+        active_proportion = 10,
         noise = 0.1,
-        seed = 6,
+        seed = 0,
         rep = 1,
         features = 'all'):
 
@@ -106,8 +138,8 @@ def synthetic_data_init(
     
     '''
     # set up path according to input params
-    #base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data_large/simulated_datasets_large_coef") # main folder
-    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data") # main folder
+    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data_large/simulated_datasets_large_coef") # main folder
+    # base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data") # main folder
 
     folder_name = f"N11000_AP{active_proportion}_noise{noise}_seed{seed}" # first folder
     subfolder_name = f"Size{size}" # second folder
@@ -125,9 +157,9 @@ def synthetic_data_init(
     Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=22)
 
     # scale
-    scaler = MinMaxScaler(feature_range=(-1,1))
-    Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
-    Xtest = scaler.transform(Xtest) # scale test data
+    # scaler = StandardScaler()
+    # Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
+    # Xtest = scaler.transform(Xtest) # scale test data
 
     return Xtrain, Xtest, ytrain, ytest
 

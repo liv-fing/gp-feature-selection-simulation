@@ -31,7 +31,7 @@ from scipy.linalg import cho_factor, cho_solve
 # MY IMPORTS
 from helper_funcs.data_setup import make_run_dir, diabetes_data_init, synthetic_data_init, starting_points
 from helper_funcs.result_processing import process_pymc_results, make_trace_plots, make_trace_plots_ogp
-from helper_funcs.predicting import predictions_lasso, predictions_ogp, predictions, plot_predictions, rbf_kernel
+from helper_funcs.predicting import predictions_lasso, predictions_ogp_betanosample, predictions, plot_predictions, rbf_kernel
 from helper_funcs.make_c_star import make_c_star_matrix, make_beta, make_G
     
 # ORTHOGONAL GP LIKELIHOOD
@@ -116,9 +116,14 @@ def main(numdraws=1000,
         if mechanism == 'ogp': 
 
             # priors for \sigma^2_noise, \sigma^2_gp, ell
-            sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=1)
-            sigma2_gp = pm.InverseGamma("sigma2_gp", 3.0, 1.0)
-            ell = pm.Lognormal("ell", mu=2, sigma=0.5, shape=Xtrain.shape[1]) 
+
+            #sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=1) # orig
+            sigma2_noise = pm.HalfNormal("sigma2_noise", sigma=0.1) # much tighter
+
+            sigma2_gp = pm.InverseGamma("sigma2_gp", 1.0, 1.78)
+
+            ell = pm.Lognormal("ell", mu = -2, sigma = 1, shape = Xtrain.shape[1]) # mean = 1.0
+
 
             # likelihood function with custom GPLikelihood class
             terms = [None] + list(range(1, Xtrain.shape[1] + 1))
@@ -204,7 +209,7 @@ def main(numdraws=1000,
             print("Predictions calculated and saved, but no plots generated for lasso mechanism yet")
 
         if mechanism == 'ogp':
-            predictions_ogp(trace, Xtrain, ytrain, Xtest, ytest, outdir)
+            predictions_ogp_betanosample(trace, Xtrain, ytrain, Xtest, ytest, outdir, betas, terms)
             prediction_summary_path = os.path.join(outdir, 'prediction_summary.csv')
             plot_predictions(prediction_summary_path)
 
