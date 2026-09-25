@@ -1,8 +1,9 @@
 # Bayesian Lasso Priors for Linear Mean Gaussian Process Regression
 
-**Independent Study — IEMS 399, Northwestern University**  
-**Advisor:** Professor Moses Y.-H. Chan  
+**Independent Study — IEMS 399, Northwestern University**
+**Advisor:** Professor Moses Y.-H. Chan
 **Author:** Livia Fingerson
+**Timeline:** Spring 2024 – Spring 2025
 
 [Read the full research paper](Research_Paper_Livia_Fingerson_June_12.pdf)
 
@@ -83,6 +84,8 @@ bayesian-lasso-gp/
 ---
 
 ## Research Progression
+
+*This research spanned five phases over two academic years (Spring 2024 – Spring 2025), each building directly on the findings of the last.*
 
 This repository captures the full arc of the research, from early exploration to the final production models. Each phase built on the lessons of the previous one.
 
