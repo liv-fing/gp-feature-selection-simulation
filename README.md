@@ -1,9 +1,9 @@
 # Bayesian Lasso Priors for Linear Mean Gaussian Process Regression
 
-**Independent Study — IEMS 399, Northwestern University**<br>
+**Independent Study in Industrial Engineering, IEMS399, Northwestern University**<br>
 **Advisor:** Professor Moses Y.-H. Chan<br>
 **Author:** Livia Fingerson<br>
-**Timeline:** Spring 2024 – Spring 2025
+**Timeline:** Spring 2025 – Spring 2026
 
 [Read the full research paper](Research_Paper_Livia_Fingerson_June_12.pdf)
 
