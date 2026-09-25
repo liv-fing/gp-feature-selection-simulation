@@ -11,7 +11,7 @@ main differences:
 - double checked which sigma
 
 /// to run:
-cd Desktop/GitHub/IEMS399-GP/phase3-refining
+cd Desktop/GitHub/IEMS399-GP/initial_project_phases/phase3-refining
 conda activate venv
 python machinery/mechanism_v4.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
 
@@ -201,7 +201,7 @@ def synthetic_data_init(
     '''
     # set up path according to input params
 
-    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data_large/simulated_datasets_large_coef") # main folder
+    base_path = Path(__file__).parent.parent.parent / "data" / "synthetic_data_large_coefficients" / "simulated_datasets_large_coef" # main folder
     folder_name = f"N11000_AP{active_proportion}_noise{noise}_seed{seed}" # first folder
     subfolder_name = f"Size{size}" # second folder
     path = base_path / folder_name / subfolder_name / f"Rep{rep}.csv"

@@ -4,7 +4,7 @@ Just OGP version of original GP implementation
 constructs beta instead of sampling
 
 to run: 
-cd Desktop/GitHub/IEMS399-GP/phase4-OGP
+cd Desktop/GitHub/IEMS399-GP/initial_project_phases/phase4-OGP
 conda activate venv
 python machinery/mechanism_OGP_v1.py /
 --test_lambda True 

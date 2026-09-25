@@ -106,8 +106,8 @@ def synthetic_data_init(
     
     '''
     # set up path according to input params
-    #base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data_large/simulated_datasets_large_coef") # main folder
-    base_path = Path("/Users/liviafingerson/Desktop/GitHub/IEMS399-GP/synthetic_data") # main folder
+    #base_path = Path(__file__).parent.parent.parent.parent / "data" / "synthetic_data_large_coefficients" / "simulated_datasets_large_coef" # main folder
+    base_path = Path(__file__).parent.parent.parent.parent / "data" / "synthetic_data_large_coefficients" / "simulated_datasets_large_coef" # main folder
 
     folder_name = f"N11000_AP{active_proportion}_noise{noise}_seed{seed}" # first folder
     subfolder_name = f"Size{size}" # second folder

@@ -4,7 +4,7 @@ Clean code for Gaussian Process regression with zero mean function, using pymc
 
 
 /// to run:
-    cd Desktop/GitHub/IEMS399-GP/phase5-writing
+    cd Desktop/GitHub/IEMS399-GP/phase5-final
     conda activate venv
 
     python model0_ZeroMeanGP.py  --numtune 0 --numdraws 10000
@@ -29,7 +29,7 @@ from sklearn.model_selection import train_test_split
 # CUSTOM IMPORTS
 from helper_funcs.data_setup import make_run_dir, diabetes_data_init, synthetic_data_init, new_data_init
 
-from helper_funcs.predicting import predictions, plot_predictions, rbf_kernel
+from helper_funcs.predicting import predictions_gp, plot_predictions, rbf_kernel
 from helper_funcs.zero_mean import ZERO_process_pymc_results, ZERO_make_trace_plots, ZERO_predict_and_save
 
 

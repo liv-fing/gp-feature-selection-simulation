@@ -45,6 +45,6 @@ The entire simulation pipeline was implemented using a custom Python class, allo
 
 - `gp_feature_select.py` – Contains a custom Python class that wraps feature selection and GP regression. Supports ARD, Lasso-based filtering, and L1-penalized GP models with modular training and evaluation methods.
 - `notebooks/` – Jupyter notebooks used for simulation, analysis, and visualization.
-- `synthetic_data/` – Synthetic datasets generated with controlled sparsity and noise.
+- `data/synthetic_data_large_coefficients/` *(at the repo root)* – Synthetic datasets generated with controlled sparsity and noise. These were moved to the top-level `data/` folder during a later reorganization of the repository.
 - `figures/` – Plots comparing model performance across settings.
 - `archive/` – Old experiments and notebooks kept for reference.
