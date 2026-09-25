@@ -5,7 +5,9 @@ Clean code for Gaussian Process / Bayesian Lasso with pymc
     cd Desktop/GitHub/IEMS399-GP/phase5-writing
     conda activate venv
 
-    python model2_BL_GP.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
+    python model2_BL_GP_noARD.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000
+
+    python model2_BL_GP_noARD.py --numdraws 10000 --numtune 0  --data diabetes
 
     for lbda in  0.001 0.01 0.1; do
     python model2_BL_GP.py \
@@ -35,9 +37,9 @@ from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 
 # CUSTOM IMPORTS
-from helper_funcs.data_setup import make_run_dir, diabetes_data_init, synthetic_data_init, starting_points
+from helper_funcs.data_setup import make_run_dir, diabetes_data_init, synthetic_data_init, starting_points, new_data_init
 from helper_funcs.result_processing import process_pymc_results, make_trace_plots, make_trace_plots_ogp
-from helper_funcs.predicting import predictions_lasso, predictions_ogp_betanosample, predictions, plot_predictions, rbf_kernel
+from helper_funcs.predicting import predictions_lasso, predictions_ogp_betanosample, predictions_gp, plot_predictions, rbf_kernel
 
 
 # GP LIKELIHOOD
@@ -106,8 +108,10 @@ def main(
     # data 
     if data == 'diabetes':
         Xtrain, Xtest, ytrain, ytest = diabetes_data_init(choose_features = 'all')
-    elif data == 'synthetic':
-        Xtrain, Xtest, ytrain, ytest = synthetic_data_init(size = 1000, 
+    if data == 'new':
+        Xtrain, Xtest, ytrain, ytest = new_data_init()
+    elif data == 'synthetic': ### ENCODE WAY TO CHANGE THIS
+        Xtrain, Xtest, ytrain, ytest = synthetic_data_init(size = 500, 
                                                            active_proportion = 10, 
                                                            noise = 0.1, 
                                                            seed = 0, 
@@ -128,7 +132,8 @@ def main(
 
         # gp priors
         sigma2_gp = pm.InverseGamma("sigma2_gp", 3.0, 1.0)
-        ell = pm.Lognormal("ell", mu=-2, sigma=1, shape=Xtrain.shape[1])
+        # ell = pm.Lognormal("ell", mu=-2, sigma=1, shape=Xtrain.shape[1]) ######
+        ell = pm.Lognormal('ell', mu=-2, sigma=1)
 
         # step type
         if steptype == 'Metropolis':
@@ -171,8 +176,8 @@ def main(
     summary.to_csv(os.path.join(outdir, 'posterior_summary.csv'))
 
     if predict:
-        predictions_lasso(trace, Xtrain, ytrain, Xtest, ytest, outdir)
-        print("Predictions calculated and saved, but no plots generated for lasso mechanism yet")
+        predictions_gp(trace, Xtrain, ytrain, Xtest, ytest, outdir)
+        print("Predictions calculated and saved.")
 
 if __name__ == "__main__":
     import argparse
@@ -182,9 +187,10 @@ if __name__ == "__main__":
     parser.add_argument('--numchains', type=int, default=6, help='Number of chains (default: 6)')
     parser.add_argument('--seed', type=int, default=1, help='Random seed (default: 1)')
     parser.add_argument('--step', type=str, default='Metropolis', help='Sampler step type (default: Metropolis)')
-    parser.add_argument('--test_lambda', type=bool, default=True, help = 'Experiment with a set lambda?')
+    parser.add_argument('--test_lambda', action='store_true', help = 'Experiment with a set lambda?') # if --test_lambda flag included in command line, will use fixed lambda value instead of sampling it
     parser.add_argument('--fixed_lambda_val', type=float, default=5, help = 'If testing lambda, choose fixed val')
     parser.add_argument('--data', type=str, default='diabetes', help = 'Choose data: diabetes or synthetic')
+    parser.add_argument('--predict', action='store_true', help='Whether to generate predictions and plots') # only generate predictions when flag included in command line
     args = parser.parse_args()
 
     main(
@@ -195,5 +201,6 @@ if __name__ == "__main__":
         steptype = args.step,
         test_lambda = args.test_lambda,
         fixed_lambda_val = args.fixed_lambda_val,
-        data = args.data
+        data = args.data,
+        predict = args.predict
         )

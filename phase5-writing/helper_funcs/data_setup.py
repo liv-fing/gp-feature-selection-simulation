@@ -10,7 +10,6 @@ from helper_funcs.data_setup import
 
 '''
 
-
 # IMPORTS
 import numpy as np
 import pandas as pd
@@ -71,7 +70,7 @@ def diabetes_data_init(choose_features = 'all'):
     '''
     load and prepare diabetes data from sklearn
     '''
-    
+
     diabetes = load_diabetes(as_frame=True)
 
     if choose_features == 'all':
@@ -89,6 +88,10 @@ def diabetes_data_init(choose_features = 'all'):
     Xtest  = Xtest.to_numpy()
     ytrain = np.asarray(ytrain)
     ytest  = np.asarray(ytest)  
+
+    # mean center y
+    ytrain = ytrain - np.mean(ytrain)
+    ytest = ytest - np.mean(ytest)
 
     return Xtrain, Xtest, ytrain, ytest
 
@@ -155,11 +158,6 @@ def synthetic_data_init(
     y = df['y'].values
 
     Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=22)
-
-    # scale
-    # scaler = StandardScaler()
-    # Xtrain = scaler.fit_transform(Xtrain) # fit and scale training data
-    # Xtest = scaler.transform(Xtest) # scale test data
 
     return Xtrain, Xtest, ytrain, ytest
 

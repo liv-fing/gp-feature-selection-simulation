@@ -57,7 +57,7 @@ def process_pymc_results(outdir, trace, X):
     return clean_df
 
 # TRACE PLOTS
-def make_trace_plots(outdir, trace, X, mechanism):
+def make_trace_plots(outdir, trace, X, mechanism, plot_diabetes=True):
     '''
     create trace plots for all parameters in the model
     for lasso, only plot beta, sigma2_noise, and lambda
@@ -73,7 +73,7 @@ def make_trace_plots(outdir, trace, X, mechanism):
         scalars = ["sigma2_noise", "lambda"] # lambda derived from lambda2
         plot_ell = False
 
-    elif mechanism in ('BL_GP','ols', 'ogp'):
+    elif mechanism in ('BL_GP','ols', 'ogp', 'ogp_sample'):
         scalars = ["sigma2_noise", "sigma2_gp", "lambda"] # lambda derived from lambda2
         plot_ell = True
 
@@ -112,6 +112,13 @@ def make_trace_plots(outdir, trace, X, mechanism):
     if total_axes == 1: # if only one plot, axes is not a list, so make it a list
         axes = [axes]
 
+
+    # if diabetes, label betas with feature names instead of beta0, beta1, etc. (optional)
+    if plot_diabetes:
+        feature_names = ['age', 'sex', 'bmi', 'bp', 's1', 's2', 's3', 's4', 's5', 's6']
+        param_feature_map = {f'beta{j}': feature_names[j] for j in range(num_features)}
+
+
     # plot
     for i, (kind, key) in enumerate(panels): # loop through panels
         ax = axes[i]
@@ -132,7 +139,7 @@ def make_trace_plots(outdir, trace, X, mechanism):
             beta_j = posterior['beta'].isel(beta_dim_0=j) # beta for feature j
             for chain in range(beta_j.sizes['chain']):
                 ax.plot(beta_j.isel(chain=chain).values, alpha=0.4)
-            ax.set_title(f'Trace plot for beta{j}')
+            ax.set_title(f'Trace plot for beta{j} ({param_feature_map.get(f"beta{j}", f"feature{j}")})' if plot_diabetes else f'Trace plot for beta{j}')
             ax.set_ylabel(f'beta{j}')
 
         elif kind == "ell":
@@ -149,7 +156,7 @@ def make_trace_plots(outdir, trace, X, mechanism):
     plt.close()
 
 
-def make_trace_plots_ogp(outdir, trace, X, betas):
+def make_trace_plots_ogp(outdir, trace, X, betas, plot_diabetes=True):
     '''
     trace plots for OGP - hyperparams from trace, betas from post-hoc computation
     betas: np.array of shape (n_samples, n_terms) 
@@ -179,6 +186,12 @@ def make_trace_plots_ogp(outdir, trace, X, betas):
     if total_axes == 1:
         axes = [axes]
 
+    # if diabetes, label betas with feature names instead of beta0, beta1, etc. (optional)
+    if plot_diabetes:
+        feature_names = ['age', 'sex', 'bmi', 'bp', 's1', 's2', 's3', 's4', 's5', 's6']
+        param_feature_map = {f'beta{j}': feature_names[j] for j in range(num_features)}
+
+
     for i, (kind, key) in enumerate(panels):
         ax = axes[i]
         if kind == "scalar":
@@ -190,7 +203,7 @@ def make_trace_plots_ogp(outdir, trace, X, betas):
         elif kind == "beta":
             j = key
             ax.plot(betas[:, j], alpha=0.5)  # flat numpy array, no chains
-            ax.set_title(f'Trace plot for beta{j}')
+            ax.set_title(f'Posterior draws of beta{j} ({param_feature_map.get(f"beta{j}", f"feature{j}")})' if plot_diabetes else f'Trace plot for beta{j}')
             ax.set_ylabel(f'beta{j}')
         elif kind == "ell":
             j = key
