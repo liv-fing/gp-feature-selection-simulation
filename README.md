@@ -14,7 +14,7 @@ Gaussian Process (GP) regression is a powerful, flexible tool for modeling compl
 
 The problem is that in practice, the linear component and the GP compete to explain the same variation in the data. The GP is flexible enough to absorb whatever the linear component doesn't claim, but that also means it is flexible enough to absorb the everything, shrinking the linear coefficients to zero and interfering with interpretability. Standard regularization approaches designed for pure regression don't solve this, because they operate on the linear component without accounting for the GP's ability to compensate.
 
-This research investigates whether **Bayesian Lasso priors**, a Bayesian approach to sparse linear regression, can recover meaningful, interpretable linear coefficients in this setting, either alone or in combination with recent orthogonal GP methods designed to enforce a structural separation between the linear and nonlinear components.
+This research investigates whether Bayesian Lasso priors, a Bayesian approach to sparse linear regression, can recover meaningful, interpretable linear coefficients in this setting, either alone or in combination with recent orthogonal GP methods designed to enforce a structural separation between the linear and nonlinear components.
 
 ---
 
