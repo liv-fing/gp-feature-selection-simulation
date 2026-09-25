@@ -10,11 +10,11 @@
 
 ## Overview
 
-Gaussian Process (GP) regression is a powerful, flexible tool for modeling complex nonlinear relationships. A common extension is to add a **linear mean function** to the GP — essentially letting the model say "there is a broad linear trend *plus* some nonlinear residual structure." This is appealing because the linear component gives interpretable coefficients: you can see which variables actually matter and by how much.
+Gaussian Process (GP) regression is a powerful, flexible tool for modeling complex nonlinear relationships. A common extension is to add a linear mean function to the GP, which essentially lets the model integrate a broad linear trend with nonlinear residual structure. This is appealing because the linear component gives interpretable coefficients, meaning that you can examine the relative importance of individual features. 
 
-The problem is that in practice, the linear component and the GP **compete** to explain the same variation in the data. The GP is flexible enough to absorb whatever the linear component doesn't claim — but that also means it can silently absorb *everything*, leaving the linear coefficients shrunk toward zero and uninterpretable. Standard regularization approaches designed for pure regression don't solve this, because they operate on the linear component without accounting for the GP's ability to compensate.
+The problem is that in practice, the linear component and the GP compete to explain the same variation in the data. The GP is flexible enough to absorb whatever the linear component doesn't claim, but that also means it is flexible enough to absorb the everything, shrinking the linear coefficients to zero and interfering with interpretability. Standard regularization approaches designed for pure regression don't solve this, because they operate on the linear component without accounting for the GP's ability to compensate.
 
-This research investigates whether **Bayesian Lasso priors** — a Bayesian approach to sparse linear regression — can recover meaningful, interpretable linear coefficients in this setting, either alone or in combination with a recently developed class of **orthogonal GP** methods designed to enforce a structural separation between the linear and nonlinear components.
+This research investigates whether **Bayesian Lasso priors**, a Bayesian approach to sparse linear regression, can recover meaningful, interpretable linear coefficients in this setting, either alone or in combination with recent orthogonal GP methods designed to enforce a structural separation between the linear and nonlinear components.
 
 ---
 
@@ -37,7 +37,7 @@ Six models were implemented and compared on the [diabetes dataset](https://sciki
 | **Model 3** — Orthogonal GP, analytical β | Linear mean fit via orthogonal projection after GP sampling; β computed analytically |
 | **Model 4** — Orthogonal GP, sampled β | Orthogonal GP with Bayesian Lasso priors on β, sampled jointly |
 
-The **orthogonal GP** approach (Models 3 & 4) is based on the framework of [Plumlee & Roshan (2016)](https://www.tandfonline.com/doi/abs/10.1080/01621459.2015.1119157), which constructs a modified kernel (C\*) that is mathematically orthogonal to the linear subspace — preventing the GP from absorbing linear trends by construction.
+The **orthogonal GP** approach (Models 3 & 4) is based on the framework of [Plumlee & Roshan (2016)](https://www.tandfonline.com/doi/abs/10.1080/01621459.2015.1119157), which constructs a modified kernel (C\*) that is mathematically orthogonal to the linear subspace, preventing the GP from absorbing linear trends by construction.
 
 All models were implemented in **Python** using **PyMC** for Bayesian inference, **ArviZ** for posterior diagnostics, and standard scientific Python libraries (NumPy, Pandas, scikit-learn, Matplotlib).
 
@@ -46,6 +46,8 @@ All models were implemented in **Python** using **PyMC** for Bayesian inference,
 ## Key Finding
 
 The joint Bayesian inference approaches (Models 2 & 4) struggled in practice: Bayesian Lasso hyperparameters tended to force linear coefficients toward zero while the GP captured all variance, or produced very wide credible intervals when regularization was relaxed. The **two-stage orthogonal GP** (Model 3), which computes β analytically from posterior GP samples rather than sampling everything jointly, achieved the best balance between predictive accuracy and coefficient interpretability on the diabetes dataset.
+
+These results imply that competition between the Gaussian process and linear components may not be the reason the linear mean contributes insignificantly. Rather, insignificance may be the result, where heavy regularization improves the poor convergence of linear coefficients, even as it trivializes the linear component of the model.
 
 ---
 
@@ -85,7 +87,7 @@ bayesian-lasso-gp/
 This repository captures the full arc of the research, from early exploration to the final production models. Each phase built on the lessons of the previous one.
 
 **Phase 1 — Feature Selection Benchmark**  
-The project began as a study of sparse feature selection for GP regression. Five methods were compared — standard GP, ARD GP, Lasso-filtered GP, and variations — across 105 synthetic datasets with controlled sparsity and noise levels. The central finding was that existing feature selection approaches don't cleanly separate *which* variables are important from *how* to model their relationships. This pointed toward the need for a more principled Bayesian approach to the linear component.  
+The project began as a study of sparse feature selection for GP regression. Five methods were compared (standard GP, ARD GP, Lasso-filtered GP, and variations) across 105 synthetic datasets with controlled sparsity and noise levels. The central finding was that existing feature selection approaches don't cleanly separate which variables are important from how to model their relationships. This pointed toward the need for a more principled Bayesian approach to the linear component.  
 📄 [Phase 1 report](initial_project_phases/phase1/IEMS399_Final_Report.pdf)
 
 **Phase 2 — MCMC Inference Framework**  
