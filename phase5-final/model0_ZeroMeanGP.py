@@ -4,7 +4,7 @@ Clean code for Gaussian Process regression with zero mean function, using pymc
 
 
 /// to run:
-    cd Desktop/GitHub/IEMS399-GP/phase5-final
+    cd Desktop/GitHub/bayesian-lasso-gp/phase5-final
     conda activate venv
 
     python model0_ZeroMeanGP.py  --numtune 0 --numdraws 10000

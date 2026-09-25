@@ -22,7 +22,7 @@ results/
 
 
 to run:
-cd Desktop/GitHub/IEMS399-GP/initial_project_phases/phase3-refining
+cd Desktop/GitHub/bayesian-lasso-gp/initial_project_phases/phase3-refining
 conda activate venv
 python machinery/mechanism_mega.py 
 --test_lambda True 

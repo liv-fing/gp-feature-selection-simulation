@@ -13,7 +13,7 @@ questions:
 
 
 /// to run:
-cd Desktop/GitHub/IEMS399-GP/initial_project_phases/phase3-refining
+cd Desktop/GitHub/bayesian-lasso-gp/initial_project_phases/phase3-refining
 conda activate venv
 python machinery/mechanism_v5.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000 --numchains 4 --data diabetes
 

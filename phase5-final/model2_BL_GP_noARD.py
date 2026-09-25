@@ -2,7 +2,7 @@
 Clean code for Gaussian Process / Bayesian Lasso with pymc
 
 /// to run:
-    cd Desktop/GitHub/IEMS399-GP/phase5-final
+    cd Desktop/GitHub/bayesian-lasso-gp/phase5-final
     conda activate venv
 
     python model2_BL_GP_noARD.py --test_lambda True --fixed_lambda_val 2.0 --numtune 0 --numdraws 10000

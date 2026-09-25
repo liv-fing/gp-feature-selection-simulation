@@ -9,7 +9,7 @@ python model4_OGP_SampBeta.py --numdraws 10000 --numtune 0  --data diabetes --nu
 
 
 to run: 
-cd Desktop/GitHub/IEMS399-GP/phase5-final
+cd Desktop/GitHub/bayesian-lasso-gp/phase5-final
 conda activate venv
 python machinery/mechanism_OGP_betasample.py 
 --test_lambda True 

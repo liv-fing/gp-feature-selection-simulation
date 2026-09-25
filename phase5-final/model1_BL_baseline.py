@@ -3,7 +3,7 @@ Clean code for baseline Bayesian Lasso with pymc
 ADDED INTERCEPT
 
 /// to run:
-    cd Desktop/GitHub/IEMS399-GP/phase5-final
+    cd Desktop/GitHub/bayesian-lasso-gp/phase5-final
     conda activate venv
 
     python model1_BL_baseline.py --numdraws 10000 --numtune 2000 --data diabetes 

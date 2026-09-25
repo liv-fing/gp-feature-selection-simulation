@@ -52,7 +52,7 @@ The joint Bayesian inference approaches (Models 2 & 4) struggled in practice: Ba
 ## Repository Structure
 
 ```
-IEMS399-GP/
+bayesian-lasso-gp/
 │
 ├── Research_Paper_Livia_Fingerson_June_12.pdf   ← Full research paper
 │
