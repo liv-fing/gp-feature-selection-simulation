@@ -4,7 +4,7 @@
 **Advisor:** Professor Moses Y.-H. Chan  
 **Author:** Livia Fingerson
 
-📄 [Read the full research paper](Research_Paper_Livia_Fingerson_June_12.pdf)
+[Read the full research paper](Research_Paper_Livia_Fingerson_June_12.pdf)
 
 ---
 
