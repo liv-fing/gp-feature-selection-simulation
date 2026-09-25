@@ -39,13 +39,13 @@ Six models were implemented and compared on the [diabetes dataset](https://sciki
 
 The **orthogonal GP** approach (Models 3 & 4) is based on the framework of [Plumlee & Roshan (2016)](https://www.tandfonline.com/doi/abs/10.1080/01621459.2015.1119157), which constructs a modified kernel (C\*) that is mathematically orthogonal to the linear subspace, preventing the GP from absorbing linear trends by construction.
 
-All models were implemented in **Python** using **PyMC** for Bayesian inference, **ArviZ** for posterior diagnostics, and standard scientific Python libraries (NumPy, Pandas, scikit-learn, Matplotlib).
+All models were implemented in Python using PyMC for Bayesian inference, ArviZ for posterior diagnostics, and standard scientific Python libraries (NumPy, Pandas, scikit-learn, Matplotlib).
 
 ---
 
 ## Key Finding
 
-The joint Bayesian inference approaches (Models 2 & 4) struggled in practice: Bayesian Lasso hyperparameters tended to force linear coefficients toward zero while the GP captured all variance, or produced very wide credible intervals when regularization was relaxed. The **two-stage orthogonal GP** (Model 3), which computes β analytically from posterior GP samples rather than sampling everything jointly, achieved the best balance between predictive accuracy and coefficient interpretability on the diabetes dataset.
+The joint Bayesian inference approaches (Models 2 & 4) struggled in practice: Bayesian Lasso hyperparameters tended to force linear coefficients toward zero while the GP captured all variance, or produced very wide credible intervals when regularization was relaxed. The two-stage orthogonal GP (Model 3), which computes β analytically from posterior GP samples rather than sampling everything jointly, achieved the best balance between predictive accuracy and coefficient interpretability on the diabetes dataset.
 
 These results imply that competition between the Gaussian process and linear components may not be the reason the linear mean contributes insignificantly. Rather, insignificance may be the result, where heavy regularization improves the poor convergence of linear coefficients, even as it trivializes the linear component of the model.
 
@@ -88,7 +88,7 @@ This repository captures the full arc of the research, from early exploration to
 
 **Phase 1 — Feature Selection Benchmark**  
 The project began as a study of sparse feature selection for GP regression. Five methods were compared (standard GP, ARD GP, Lasso-filtered GP, and variations) across 105 synthetic datasets with controlled sparsity and noise levels. The central finding was that existing feature selection approaches don't cleanly separate which variables are important from how to model their relationships. This pointed toward the need for a more principled Bayesian approach to the linear component.  
-📄 [Phase 1 report](initial_project_phases/phase1/IEMS399_Final_Report.pdf)
+[Phase 1 report](initial_project_phases/phase1/IEMS399_Final_Report.pdf)
 
 **Phase 2 — MCMC Inference Framework**  
 Explored Markov Chain Monte Carlo sampling as a route to full Bayesian inference for GP models with linear means. Several sampling strategies were tested, including the Bilby framework. This phase established the core inference machinery and identified practical challenges with convergence.
@@ -106,7 +106,7 @@ All six competing models were implemented cleanly, run on the diabetes dataset, 
 
 ## Additional Experiments: Synthetic Data
 
-The final paper focuses on the diabetes dataset as a real-world benchmark. In addition to those experiments, a suite of **controlled synthetic data experiments** was developed to validate the methodology under known ground-truth conditions.
+The final paper focuses on the diabetes dataset as a real-world benchmark. In addition to those experiments, a suite of controlled synthetic data experiments was developed to validate the methodology under known ground-truth conditions.
 
 The synthetic datasets are stored in [`data/synthetic_data_large_coefficients/`](data/synthetic_data_large_coefficients/). Each dataset was generated from the model:
 
@@ -122,4 +122,4 @@ These experiments were conducted as part of the research process but did not mak
 
 ## Acknowledgements
 
-This research was conducted as an independent study (IEMS 399) at Northwestern University under the supervision of **Professor Moses Y.-H. Chan**, whose guidance shaped both the research direction and methodology throughout all phases of the project.
+This research was conducted as an independent study (IEMS 399) at Northwestern University under the supervision of Professor Moses Y.-H. Chan, whose guidance shaped both the research direction and methodology throughout all phases of the project.
